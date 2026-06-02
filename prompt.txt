@@ -1,12 +1,23 @@
-Yes, run git init and make the first commit. 
-Include a .gitignore file that excludes:
-- node_modules/
-- .expo/
-- backend/data/
-- backend/.env
-- *.log
-- .DS_Store
-- dist/
-- build/
-Then stage all files and commit with message:
-"feat: initial ShopMaster scaffold with auth and inventory foundation"
+The RegisterShopScreen form loads but the submit button does nothing 
+when clicked. No error appears on screen.
+
+Please debug and fix:
+
+1. Show full contents of mobile/src/screens/auth/RegisterShopScreen.js
+2. Find the submit button onPress handler
+3. Add a console.log at the very start of the submit function:
+   console.log('Submit pressed', formData);
+4. Check the API call matches the backend endpoint exactly:
+   POST http://localhost:3001/api/v1/auth/register-shop
+   Body: { shopName, ownerName, email, password }
+5. Wrap the entire submit function in try/catch and show ALL errors:
+   try {
+     ...
+   } catch (err) {
+     console.error('Register error:', err);
+     console.error('Response:', err.response?.data);
+     Alert.alert('Error', JSON.stringify(err.response?.data ?? err.message));
+   }
+6. Check if a loading state is blocking the button:
+   disabled={loading} -- if loading is stuck as true, button won't work
+7. Fix all issues and save the file

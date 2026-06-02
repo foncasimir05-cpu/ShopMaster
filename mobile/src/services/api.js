@@ -32,7 +32,11 @@ export const deleteProduct = id => api.delete(`/products/${id}`).then(r => r.dat
 export const getSales = params => api.get('/sales', { params }).then(r => r.data);
 export const getSale = id => api.get(`/sales/${id}`).then(r => r.data);
 export const createSale = data => api.post('/sales', data).then(r => r.data);
+export const voidSale = id => api.delete(`/sales/${id}`).then(r => r.data);
 export const getInvoiceUrl = id => `${BASE_URL}/sales/${id}/invoice`;
+export const getDailyReport = date => api.get('/sales/report/daily', { params: { date } }).then(r => r.data);
+export const getWeeklyReport = week => api.get('/sales/report/weekly', { params: { week } }).then(r => r.data);
+export const getMonthlyReport = month => api.get('/sales/report/monthly', { params: { month } }).then(r => r.data);
 
 // Inventory
 export const getInventory = params => api.get('/inventory', { params }).then(r => r.data);

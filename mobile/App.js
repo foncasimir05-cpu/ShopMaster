@@ -11,8 +11,9 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterShopScreen from './src/screens/auth/RegisterShopScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ProductsScreen from './src/screens/ProductsScreen';
-import SalesScreen from './src/screens/SalesScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
+import POSScreen from './src/screens/pos/POSScreen';
+import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -22,7 +23,8 @@ function MainTabs() {
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: '#1a56db' }}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Sales" component={SalesScreen} />
+      <Tab.Screen name="POS" component={POSScreen} />
+      <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: 'Sales' }} />
       <Tab.Screen name="Inventory" component={InventoryScreen} />
     </Tab.Navigator>
   );

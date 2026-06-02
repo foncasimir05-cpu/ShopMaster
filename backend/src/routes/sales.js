@@ -7,52 +7,123 @@ const { generateInvoicePdf } = require('../services/pdf');
 const router = express.Router();
 router.use(requireAuth);
 
+// ── Report routes must be registered before /:id ──────────────────────────────
+
+// GET /api/v1/sales/report/daily?date=YYYY-MM-DD
+router.get('/report/daily', (req, res, next) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: 'date param required (YYYY-MM-DD)' });
+    const db = getDb();
+    const byHour = db.prepare(`
+      SELECT strftime('%H', created_at) as hour,
+             COUNT(*) as sales_count,
+             SUM(total) as revenue,
+             SUM(discount) as total_discount
+      FROM sales
+      WHERE tenant_id = ? AND date(created_at) = ? AND status = 'completed'
+      GROUP BY hour ORDER BY hour
+    `).all(req.user.tenantId, date);
+    const summary = db.prepare(`
+      SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue,
+             COALESCE(SUM(discount),0) as total_discount
+      FROM sales WHERE tenant_id = ? AND date(created_at) = ? AND status = 'completed'
+    `).get(req.user.tenantId, date);
+    res.json({ date, summary, byHour });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/sales/report/weekly?week=YYYY-WW
+router.get('/report/weekly', (req, res, next) => {
+  try {
+    const { week } = req.query;
+    if (!week) return res.status(400).json({ error: 'week param required (YYYY-WW)' });
+    const db = getDb();
+    const byDay = db.prepare(`
+      SELECT strftime('%Y-%m-%d', created_at) as date,
+             COUNT(*) as sales_count,
+             SUM(total) as revenue
+      FROM sales
+      WHERE tenant_id = ? AND strftime('%Y-%W', created_at) = ? AND status = 'completed'
+      GROUP BY date ORDER BY date
+    `).all(req.user.tenantId, week);
+    const summary = db.prepare(`
+      SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue
+      FROM sales WHERE tenant_id = ? AND strftime('%Y-%W', created_at) = ? AND status = 'completed'
+    `).get(req.user.tenantId, week);
+    res.json({ week, summary, byDay });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/sales/report/monthly?month=YYYY-MM
+router.get('/report/monthly', (req, res, next) => {
+  try {
+    const { month } = req.query;
+    if (!month) return res.status(400).json({ error: 'month param required (YYYY-MM)' });
+    const db = getDb();
+    const byDay = db.prepare(`
+      SELECT strftime('%Y-%m-%d', created_at) as date,
+             COUNT(*) as sales_count,
+             SUM(total) as revenue
+      FROM sales
+      WHERE tenant_id = ? AND strftime('%Y-%m', created_at) = ? AND status = 'completed'
+      GROUP BY date ORDER BY date
+    `).all(req.user.tenantId, month);
+    const summary = db.prepare(`
+      SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue
+      FROM sales WHERE tenant_id = ? AND strftime('%Y-%m', created_at) = ? AND status = 'completed'
+    `).get(req.user.tenantId, month);
+    res.json({ month, summary, byDay });
+  } catch (err) { next(err); }
+});
+
+// ── CRUD ───────────────────────────────────────────────────────────────────────
+
 // GET /api/v1/sales
 router.get('/', (req, res, next) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 50, startDate, endDate } = req.query;
     const db = getDb();
     const offset = (Number(page) - 1) * Number(limit);
-    const sales = db
-      .prepare(
-        `SELECT s.*, u.email as cashier_email FROM sales s
-         JOIN users u ON s.user_id = u.id
-         WHERE s.tenant_id = ? ORDER BY s.created_at DESC LIMIT ? OFFSET ?`
-      )
-      .all(req.user.tenantId, Number(limit), offset);
-    res.json(sales);
-  } catch (err) {
-    next(err);
-  }
+
+    let where = 'WHERE s.tenant_id = ?';
+    const params = [req.user.tenantId];
+    if (startDate) { where += ' AND date(s.created_at) >= ?'; params.push(startDate); }
+    if (endDate)   { where += ' AND date(s.created_at) <= ?'; params.push(endDate); }
+
+    const sales = db.prepare(
+      `SELECT s.*, u.email as cashier_email FROM sales s
+       JOIN users u ON s.user_id = u.id
+       ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`
+    ).all(...params, Number(limit), offset);
+
+    const { total_count } = db.prepare(
+      `SELECT COUNT(*) as total_count FROM sales s ${where}`
+    ).get(...params);
+
+    res.json({ sales, total_count, page: Number(page), limit: Number(limit) });
+  } catch (err) { next(err); }
 });
 
-// GET /api/v1/sales/:id  (includes items)
+// GET /api/v1/sales/:id
 router.get('/:id', (req, res, next) => {
   try {
     const db = getDb();
-    const sale = db
-      .prepare('SELECT * FROM sales WHERE id = ? AND tenant_id = ?')
+    const sale = db.prepare('SELECT * FROM sales WHERE id = ? AND tenant_id = ?')
       .get(req.params.id, req.user.tenantId);
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
-    const items = db
-      .prepare(
-        `SELECT si.*, p.name as product_name, p.sku FROM sale_items si
-         JOIN products p ON si.product_id = p.id
-         WHERE si.sale_id = ?`
-      )
-      .all(req.params.id);
-
+    const items = db.prepare(
+      `SELECT si.*, p.name as product_name, p.sku FROM sale_items si
+       JOIN products p ON si.product_id = p.id WHERE si.sale_id = ?`
+    ).all(req.params.id);
     res.json({ ...sale, items });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
-// POST /api/v1/sales  — create a new sale (cart checkout)
+// POST /api/v1/sales
 router.post('/', (req, res, next) => {
   try {
-    const { items, discount = 0, tax = 0 } = req.body;
+    const { items, discount = 0, taxRate = 0, paymentMethod = 'cash' } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
@@ -60,10 +131,10 @@ router.post('/', (req, res, next) => {
     const db = getDb();
     const saleId = uuidv4();
 
-    const createSale = db.transaction(() => {
+    const result = db.transaction(() => {
       let subtotal = 0;
 
-      const insertedItems = items.map(({ productId, quantity }) => {
+      const insertedItems = items.map(({ productId, quantity, unitPrice }) => {
         const product = db
           .prepare('SELECT * FROM products WHERE id = ? AND tenant_id = ?')
           .get(productId, req.user.tenantId);
@@ -72,63 +143,93 @@ router.post('/', (req, res, next) => {
           throw Object.assign(new Error(`Insufficient stock for "${product.name}"`), { status: 422 });
         }
 
-        const lineTotal = product.price * quantity;
+        const price = unitPrice != null ? Number(unitPrice) : product.price;
+        const lineTotal = price * quantity;
         subtotal += lineTotal;
 
         db.prepare(
-          'UPDATE products SET stock = stock - ?, updated_at = datetime(\'now\') WHERE id = ?'
+          "UPDATE products SET stock = stock - ?, updated_at = datetime('now') WHERE id = ?"
         ).run(quantity, productId);
+
+        db.prepare(
+          `INSERT INTO stock_movements (id, tenant_id, product_id, sale_id, delta, type)
+           VALUES (?,?,?,?,?,?)`
+        ).run(uuidv4(), req.user.tenantId, productId, saleId, -quantity, 'sale');
 
         const itemId = uuidv4();
         db.prepare(
           'INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, subtotal) VALUES (?,?,?,?,?,?)'
-        ).run(itemId, saleId, productId, quantity, product.price, lineTotal);
+        ).run(itemId, saleId, productId, quantity, price, lineTotal);
 
-        return { id: itemId, product_id: productId, product_name: product.name, quantity, unit_price: product.price, subtotal: lineTotal };
+        return {
+          id: itemId, product_id: productId, product_name: product.name,
+          quantity, unit_price: price, subtotal: lineTotal,
+        };
       });
 
-      const total = subtotal - Number(discount) + Number(tax);
+      const discountAmount = Number(discount);
+      const taxAmount = (subtotal - discountAmount) * Number(taxRate);
+      const total = subtotal - discountAmount + taxAmount;
+
       db.prepare(
-        'INSERT INTO sales (id, tenant_id, user_id, total, discount, tax) VALUES (?,?,?,?,?,?)'
-      ).run(saleId, req.user.tenantId, req.user.userId, total, discount, tax);
+        `INSERT INTO sales (id, tenant_id, user_id, total, discount, tax, payment_method)
+         VALUES (?,?,?,?,?,?,?)`
+      ).run(saleId, req.user.tenantId, req.user.userId, total, discountAmount, taxAmount, paymentMethod);
 
-      return { saleId, total, discount, tax, items: insertedItems };
-    });
+      return { saleId, subtotal, discount: discountAmount, tax: taxAmount, total, paymentMethod, items: insertedItems };
+    })();
 
-    const result = createSale();
     res.status(201).json(result);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
-// GET /api/v1/sales/:id/invoice  — download PDF invoice
+// DELETE /api/v1/sales/:id  — void sale + restore stock
+router.delete('/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    const sale = db.prepare('SELECT * FROM sales WHERE id = ? AND tenant_id = ?')
+      .get(req.params.id, req.user.tenantId);
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
+    if (sale.status === 'voided') return res.status(409).json({ error: 'Sale already voided' });
+
+    const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(req.params.id);
+
+    db.transaction(() => {
+      for (const item of items) {
+        db.prepare(
+          "UPDATE products SET stock = stock + ?, updated_at = datetime('now') WHERE id = ?"
+        ).run(item.quantity, item.product_id);
+        db.prepare(
+          `INSERT INTO stock_movements (id, tenant_id, product_id, sale_id, delta, type)
+           VALUES (?,?,?,?,?,?)`
+        ).run(uuidv4(), req.user.tenantId, item.product_id, req.params.id, item.quantity, 'void');
+      }
+      db.prepare("UPDATE sales SET status = 'voided' WHERE id = ?").run(req.params.id);
+    })();
+
+    res.json({ message: 'Sale voided', saleId: req.params.id });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/sales/:id/invoice
 router.get('/:id/invoice', async (req, res, next) => {
   try {
     const db = getDb();
-    const sale = db
-      .prepare('SELECT * FROM sales WHERE id = ? AND tenant_id = ?')
+    const sale = db.prepare('SELECT * FROM sales WHERE id = ? AND tenant_id = ?')
       .get(req.params.id, req.user.tenantId);
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
-    const items = db
-      .prepare(
-        `SELECT si.*, p.name as product_name FROM sale_items si
-         JOIN products p ON si.product_id = p.id WHERE si.sale_id = ?`
-      )
-      .all(req.params.id);
-
+    const items = db.prepare(
+      `SELECT si.*, p.name as product_name FROM sale_items si
+       JOIN products p ON si.product_id = p.id WHERE si.sale_id = ?`
+    ).all(req.params.id);
     const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(req.user.tenantId);
     const pdfBuffer = await generateInvoicePdf({ sale, items, tenant });
-
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="invoice-${sale.id.slice(0, 8)}.pdf"`,
     });
     res.send(pdfBuffer);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

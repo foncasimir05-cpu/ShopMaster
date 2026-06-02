@@ -47,21 +47,28 @@ export default function RegisterShopScreen({ navigation }) {
   };
 
   const handleRegister = async () => {
-    if (!validateStep1()) return;
+    console.log('Submit pressed', { shopName, ownerName, email, step });
+    if (!validateStep1()) {
+      Alert.alert('Please fix the errors', 'Check all fields below and try again.');
+      return;
+    }
     setLoading(true);
     try {
+      const body = JSON.stringify({
+        shopName: shopName.trim(),
+        ownerName: ownerName.trim(),
+        email: email.trim(),
+        password,
+      });
+      console.log('Calling register-shop:', `${API}/api/auth/register-shop`, body);
       const res = await fetch(`${API}/api/auth/register-shop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName: shopName.trim(),
-          ownerName: ownerName.trim(),
-          email: email.trim(),
-          password,
-        }),
+        body,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Registration failed');
+      console.log('Register response:', res.status, data);
+      if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}`);
 
       Alert.alert(
         'Shop created!',
@@ -69,7 +76,12 @@ export default function RegisterShopScreen({ navigation }) {
         [{ text: 'Continue', onPress: () => login(data) }]
       );
     } catch (err) {
-      Alert.alert('Registration failed', err.message);
+      console.error('Register error:', err);
+      console.error('Response data:', err.response?.data);
+      Alert.alert(
+        'Registration failed',
+        JSON.stringify(err.response?.data ?? err.message ?? 'Unknown error')
+      );
     } finally {
       setLoading(false);
     }

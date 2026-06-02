@@ -80,8 +80,22 @@ function initDb() {
     );
   `);
 
-  // Idempotent migration: add name column to existing users tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id          TEXT PRIMARY KEY,
+      tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      product_id  TEXT NOT NULL REFERENCES products(id),
+      sale_id     TEXT REFERENCES sales(id),
+      delta       INTEGER NOT NULL,
+      type        TEXT NOT NULL DEFAULT 'sale',
+      reason      TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Idempotent migrations
   try { db.exec("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
 
   console.warn('Database initialised at', DB_PATH);
 }
