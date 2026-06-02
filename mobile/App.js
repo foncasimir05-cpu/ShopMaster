@@ -15,19 +15,36 @@ import ProductsScreen from './src/screens/ProductsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import POSScreen from './src/screens/pos/POSScreen';
 import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
+import SettingsScreen from './src/screens/settings/SettingsScreen';
+import UserManagementScreen from './src/screens/settings/UserManagementScreen';
 
 const Stack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
-  Home:         { focused: 'home',    blur: 'home-outline' },
-  Products:     { focused: 'cube',    blur: 'cube-outline' },
-  POS:          { focused: 'cart',    blur: 'cart-outline' },
-  SalesHistory: { focused: 'receipt', blur: 'receipt-outline' },
-  Inventory:    { focused: 'layers',  blur: 'layers-outline' },
+  Home:         { focused: 'home',     blur: 'home-outline' },
+  Products:     { focused: 'cube',     blur: 'cube-outline' },
+  POS:          { focused: 'cart',     blur: 'cart-outline' },
+  SalesHistory: { focused: 'receipt',  blur: 'receipt-outline' },
+  Inventory:    { focused: 'layers',   blur: 'layers-outline' },
+  SettingsTab:  { focused: 'settings', blur: 'settings-outline' },
 };
 
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="Settings" component={SettingsScreen} />
+      <SettingsStack.Screen name="UserManagement" component={UserManagementScreen} />
+    </SettingsStack.Navigator>
+  );
+}
+
 function MainTabs() {
+  const { user } = useAuth();
+  const role = user?.role;
+  const isCashier = role === 'cashier';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -40,11 +57,18 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="POS" component={POSScreen} />
-      <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: 'Sales' }} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      {isCashier ? (
+        <Tab.Screen name="POS" component={POSScreen} />
+      ) : (
+        <>
+          <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="Products" component={ProductsScreen} />
+          <Tab.Screen name="POS" component={POSScreen} />
+          <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: 'Sales' }} />
+          <Tab.Screen name="Inventory" component={InventoryScreen} />
+          <Tab.Screen name="SettingsTab" component={SettingsNavigator} options={{ title: 'Settings' }} />
+        </>
+      )}
     </Tab.Navigator>
   );
 }
@@ -55,7 +79,7 @@ function RootNavigator() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#1a56db" />
+        <ActivityIndicator size="large" color="#1a2e4a" />
       </View>
     );
   }

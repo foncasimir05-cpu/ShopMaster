@@ -8,6 +8,7 @@ const newAuthRoutes = require('./auth/authRoutes');
 const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const inventoryRoutes = require('./routes/inventory');
+const { settingsRouter, usersRouter } = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,8 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/sales', salesRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
+app.use('/api/v1/settings', settingsRouter);
+app.use('/api/v1/users', usersRouter);
 
 // Global error handler
 app.use((err, _req, res, _next) => {

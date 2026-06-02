@@ -43,4 +43,14 @@ export const getInventory = params => api.get('/inventory', { params }).then(r =
 export const adjustStock = (productId, delta, reason) =>
   api.patch(`/inventory/${productId}/adjust`, { delta, reason }).then(r => r.data);
 
+// Settings
+export const getSettings = () => api.get('/settings').then(r => r.data);
+export const updateSettings = data => api.put('/settings', data).then(r => r.data);
+
+// Staff / User management
+export const getStaff = () => api.get('/users').then(r => r.data);
+export const createStaff = data => api.post('/users', data).then(r => r.data);
+export const updateStaff = (id, data) => api.put(`/users/${id}`, data).then(r => r.data);
+export const deactivateStaff = id => api.put(`/users/${id}/deactivate`).then(r => r.data);
+
 export default api;

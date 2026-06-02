@@ -93,8 +93,25 @@ function initDb() {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shop_settings (
+      tenant_id       TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+      name            TEXT NOT NULL DEFAULT '',
+      address         TEXT NOT NULL DEFAULT '',
+      phone           TEXT NOT NULL DEFAULT '',
+      email           TEXT NOT NULL DEFAULT '',
+      tax_enabled     INTEGER NOT NULL DEFAULT 0,
+      tax_rate        REAL NOT NULL DEFAULT 0,
+      tax_label       TEXT NOT NULL DEFAULT 'VAT',
+      currency        TEXT NOT NULL DEFAULT 'XAF',
+      receipt_footer  TEXT NOT NULL DEFAULT '',
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
   // Idempotent migrations
   try { db.exec("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"); } catch {}
   try { db.exec("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
 
   console.warn('Database initialised at', DB_PATH);
