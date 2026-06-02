@@ -1,0 +1,12 @@
+Yes, run git init and make the first commit. 
+Include a .gitignore file that excludes:
+- node_modules/
+- .expo/
+- backend/data/
+- backend/.env
+- *.log
+- .DS_Store
+- dist/
+- build/
+Then stage all files and commit with message:
+"feat: initial ShopMaster scaffold with auth and inventory foundation"

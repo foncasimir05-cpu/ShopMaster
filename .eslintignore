@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.expo/
+*.config.js
+babel.config.js
