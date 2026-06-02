@@ -1,24 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Platform } from 'react-native';
-
-// expo-secure-store falls back to localStorage on web automatically
-async function secureGet(key) {
-  if (Platform.OS === 'web') return localStorage.getItem(key);
-  const { getItemAsync } = await import('expo-secure-store');
-  return getItemAsync(key);
-}
-
-async function secureSet(key, value) {
-  if (Platform.OS === 'web') { localStorage.setItem(key, value); return; }
-  const { setItemAsync } = await import('expo-secure-store');
-  return setItemAsync(key, value);
-}
-
-async function secureDel(key) {
-  if (Platform.OS === 'web') { localStorage.removeItem(key); return; }
-  const { deleteItemAsync } = await import('expo-secure-store');
-  return deleteItemAsync(key);
-}
+import { getItem, setItem, removeItem } from '../services/storage';
 
 const AuthContext = createContext(null);
 
@@ -31,8 +12,8 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const [token, userJson] = await Promise.all([
-          secureGet('access_token'),
-          secureGet('user'),
+          getItem('auth_token'),
+          getItem('user'),
         ]);
         if (token) setAccessToken(token);
         if (userJson) setUser(JSON.parse(userJson));
@@ -43,26 +24,27 @@ export function AuthProvider({ children }) {
 
   const login = async ({ accessToken: token, refreshToken, user: userInfo }) => {
     await Promise.all([
-      secureSet('access_token', token),
-      secureSet('refresh_token', refreshToken),
-      secureSet('user', JSON.stringify(userInfo)),
+      setItem('auth_token', token),
+      setItem('refresh_token', refreshToken),
+      setItem('user', JSON.stringify(userInfo)),
     ]);
     setAccessToken(token);
+    console.log('AuthContext: token set', token);
     setUser(userInfo);
   };
 
   const logout = async () => {
     await Promise.all([
-      secureDel('access_token'),
-      secureDel('refresh_token'),
-      secureDel('user'),
+      removeItem('auth_token'),
+      removeItem('refresh_token'),
+      removeItem('user'),
     ]);
     setAccessToken(null);
     setUser(null);
   };
 
   const updateToken = async newToken => {
-    await secureSet('access_token', newToken);
+    await setItem('auth_token', newToken);
     setAccessToken(newToken);
   };
 

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,9 +11,11 @@ const STEPS = ['Shop Info', 'Owner Account'];
 
 export default function RegisterShopScreen({ navigation }) {
   const { login } = useAuth();
+  const isSubmitting = useRef(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
 
   // Step 0 fields
   const [shopName, setShopName] = useState('');
@@ -48,11 +50,14 @@ export default function RegisterShopScreen({ navigation }) {
 
   const handleRegister = async () => {
     console.log('Submit pressed', { shopName, ownerName, email, step });
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     if (!validateStep1()) {
-      Alert.alert('Please fix the errors', 'Check all fields below and try again.');
+      isSubmitting.current = false;
       return;
     }
     setLoading(true);
+    setError('');
     try {
       const body = JSON.stringify({
         shopName: shopName.trim(),
@@ -70,20 +75,19 @@ export default function RegisterShopScreen({ navigation }) {
       console.log('Register response:', res.status, data);
       if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}`);
 
-      Alert.alert(
-        'Shop created!',
-        `Your Shop ID is:\n\n${data.user.shopId}\n\nSave this — you need it to log in on other devices.`,
-        [{ text: 'Continue', onPress: () => login(data) }]
-      );
+      console.log('About to call login...');
+      await login({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+      });
+      console.log('Login called, checking navigation...');
     } catch (err) {
       console.error('Register error:', err);
-      console.error('Response data:', err.response?.data);
-      Alert.alert(
-        'Registration failed',
-        JSON.stringify(err.response?.data ?? err.message ?? 'Unknown error')
-      );
+      setError(err.message ?? 'Registration failed');
     } finally {
       setLoading(false);
+      isSubmitting.current = false;
     }
   };
 
@@ -161,6 +165,8 @@ export default function RegisterShopScreen({ navigation }) {
                 secureTextEntry
               />
 
+              {error ? <Text style={styles.submitError}>{error}</Text> : null}
+
               {loading ? (
                 <ActivityIndicator size="large" color="#1a56db" style={{ marginTop: 20 }} />
               ) : (
@@ -168,7 +174,7 @@ export default function RegisterShopScreen({ navigation }) {
                   <TouchableOpacity style={styles.backBtn} onPress={() => setStep(0)}>
                     <Text style={styles.backBtnText}>← Back</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={handleRegister}>
+                  <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={handleRegister} disabled={loading}>
                     <Text style={styles.btnText}>Create Shop</Text>
                   </TouchableOpacity>
                 </View>
@@ -216,6 +222,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15 },
   inputError: { borderColor: '#ef4444' },
   errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
+  submitError: { color: '#ef4444', fontSize: 14, marginTop: 12, textAlign: 'center' },
   rowBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   btn: { backgroundColor: '#1a56db', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },

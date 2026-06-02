@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -18,9 +19,27 @@ import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const TAB_ICONS = {
+  Home:         { focused: 'home',    blur: 'home-outline' },
+  Products:     { focused: 'cube',    blur: 'cube-outline' },
+  POS:          { focused: 'cart',    blur: 'cart-outline' },
+  SalesHistory: { focused: 'receipt', blur: 'receipt-outline' },
+  Inventory:    { focused: 'layers',  blur: 'layers-outline' },
+};
+
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: '#1a56db' }}>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: '#1a2e4a',
+        tabBarInactiveTintColor: '#9ca3af',
+        tabBarIcon: ({ focused, color, size }) => {
+          const icon = TAB_ICONS[route.name];
+          return <Ionicons name={focused ? icon.focused : icon.blur} size={size} color={color} />;
+        },
+      })}
+    >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Products" component={ProductsScreen} />
       <Tab.Screen name="POS" component={POSScreen} />
