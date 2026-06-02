@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
-const TILES = [
-  { label: 'Products', screen: 'Products', color: '#1a56db' },
-  { label: 'Sales / POS', screen: 'Sales', color: '#0e9f6e' },
-  { label: 'Inventory', screen: 'Inventory', color: '#ff5a1f' },
+const ACTIONS = [
+  { label: 'New Sale',     icon: 'cart',    screen: 'POS' },
+  { label: 'Add Product',  icon: 'cube',    screen: 'Products' },
+  { label: 'View Reports', icon: 'receipt', screen: 'SalesHistory' },
 ];
 
 export default function HomeScreen() {
@@ -15,42 +16,66 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.greeting}>Welcome back{user?.email ? `, ${user.email}` : ''}!</Text>
-      <Text style={styles.heading}>ShopMaster Dashboard</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>Welcome back, {user?.email}</Text>
+          <Text style={styles.heading}>ShopMaster Dashboard</Text>
+        </View>
+        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
 
-      <View style={styles.grid}>
-        {TILES.map(tile => (
+      <Text style={styles.sectionLabel}>Quick Actions</Text>
+      <View style={styles.actionsRow}>
+        {ACTIONS.map(action => (
           <TouchableOpacity
-            key={tile.screen}
-            style={[styles.tile, { backgroundColor: tile.color }]}
-            onPress={() => navigation.navigate(tile.screen)}
+            key={action.screen}
+            style={styles.actionCard}
+            onPress={() => navigation.navigate(action.screen)}
           >
-            <Text style={styles.tileText}>{tile.label}</Text>
+            <Ionicons name={action.icon} size={28} color="#fff" />
+            <Text style={styles.actionLabel}>{action.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
-
-      <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-        <Text style={styles.logoutText}>Sign out</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb', padding: 24, paddingTop: 60 },
-  greeting: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
-  heading: { fontSize: 26, fontWeight: 'bold', color: '#111827', marginBottom: 32 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  tile: {
-    width: '45%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    margin: '2.5%',
+    marginBottom: 32,
   },
-  tileText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  logoutBtn: { marginTop: 'auto', alignItems: 'center', paddingVertical: 12 },
-  logoutText: { color: '#ef4444', fontSize: 15 },
+  greeting: { fontSize: 13, color: '#6b7280' },
+  heading: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginTop: 2 },
+  logoutBtn: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  logoutText: { color: '#dc2626', fontWeight: '600', fontSize: 14 },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  actionsRow: { flexDirection: 'row', gap: 12 },
+  actionCard: {
+    backgroundColor: '#1a2e4a',
+    borderRadius: 12,
+    width: 105,
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 10,
+  },
+  actionLabel: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
 });
