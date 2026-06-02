@@ -31,6 +31,7 @@
         "backgroundColor": "#1a56db"
       },
       "package": "com.shopmaster.app",
+      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
