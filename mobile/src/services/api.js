@@ -1,13 +1,30 @@
 import axios from 'axios';
 import { getItem } from './storage';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3001/api';
+const BASE_URL = (() => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  // React Native web (browser) → use localhost
+  if (typeof window !== 'undefined' && window.location) {
+    return 'http://localhost:3001/api/v1';
+  }
+  // Android emulator → use 10.0.2.2
+  return 'http://10.0.2.2:3001/api/v1';
+})();
+
+// Origin only (no /api path) — used by auth screens that call /api/auth/...
+const BASE_ORIGIN = BASE_URL.replace(/\/api.*$/, '');
+export { BASE_URL, BASE_ORIGIN };
 
 const api = axios.create({ baseURL: BASE_URL });
 
 // Attach JWT token to every request
 api.interceptors.request.use(async config => {
   const token = await getItem('auth_token');
+  console.log('Interceptor token:', token ? 'found' : 'MISSING');
+  console.log('Sending token:', token?.substring(0, 20) + '...');
+  console.log('Full auth header:', 'Bearer ' + token?.substring(0, 20));
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

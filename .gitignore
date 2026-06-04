@@ -2,6 +2,7 @@ node_modules/
 .expo/
 backend/data/
 backend/.env
+mobile/.env
 *.log
 .DS_Store
 dist/

@@ -1,14 +1,14 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const { initDb } = require('./config/database');
 
-const authRoutes = require('./routes/auth');
 const newAuthRoutes = require('./auth/authRoutes');
 const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const inventoryRoutes = require('./routes/inventory');
 const { settingsRouter, usersRouter } = require('./routes/settings');
+const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,16 +19,14 @@ app.use(express.json());
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-// Auth routes (new canonical prefix)
+// Auth routes — mounted at both prefixes so web (/api/v1) and direct fetch (/api) both work
 app.use('/api/auth', newAuthRoutes);
-
-// API routes (all under /api/v1)
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/sales', salesRoutes);
-app.use('/api/v1/inventory', inventoryRoutes);
-app.use('/api/v1/settings', settingsRouter);
-app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/auth', newAuthRoutes);
+app.use('/api/v1/products', authenticateToken, productRoutes);
+app.use('/api/v1/sales', authenticateToken, salesRoutes);
+app.use('/api/v1/inventory', authenticateToken, inventoryRoutes);
+app.use('/api/v1/settings', authenticateToken, settingsRouter);
+app.use('/api/v1/users', authenticateToken, usersRouter);
 
 // Global error handler
 app.use((err, _req, res, _next) => {
@@ -38,8 +36,8 @@ app.use((err, _req, res, _next) => {
 
 initDb();
 
-app.listen(PORT, () => {
-  console.warn(`ShopMaster API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.warn(`ShopMaster API running on http://0.0.0.0:${PORT}`);
 });
 
 module.exports = app;

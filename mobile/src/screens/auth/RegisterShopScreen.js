@@ -4,8 +4,9 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { BASE_ORIGIN } from '../../services/api';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API = BASE_ORIGIN;
 
 const STEPS = ['Shop Info', 'Owner Account'];
 
