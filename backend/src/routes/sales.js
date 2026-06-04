@@ -120,8 +120,8 @@ router.get('/:id', (req, res, next) => {
 
 // POST /api/v1/sales
 router.post('/', (req, res, next) => {
+  const { items, discount = 0, taxRate = 0, paymentMethod = 'cash' } = req.body;
   try {
-    const { items, discount = 0, taxRate = 0, paymentMethod = 'cash' } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
@@ -178,7 +178,11 @@ router.post('/', (req, res, next) => {
     })();
 
     res.status(201).json(result);
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('Sale insert error:', err.message);
+    console.error('Sale data:', { shopId: req.shopId, cashierId: req.user.id, items });
+    next(err);
+  }
 });
 
 // DELETE /api/v1/sales/:id  — void sale + restore stock
