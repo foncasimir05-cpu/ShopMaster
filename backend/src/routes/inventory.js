@@ -1,9 +1,8 @@
 const express = require('express');
 const { getDb } = require('../config/database');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(requireAuth);
 
 // GET /api/v1/inventory  — list products with stock info
 router.get('/', (req, res, next) => {
@@ -12,7 +11,7 @@ router.get('/', (req, res, next) => {
     const db = getDb();
 
     let query = `SELECT id, name, sku, barcode, stock, category FROM products WHERE tenant_id = ?`;
-    const params = [req.user.tenantId];
+    const params = [req.shopId];
 
     if (lowStock === 'true') {
       query += ' AND stock <= 5';
@@ -36,7 +35,7 @@ router.patch('/:productId/adjust', requireRole('admin'), (req, res, next) => {
     const db = getDb();
     const product = db
       .prepare('SELECT * FROM products WHERE id = ? AND tenant_id = ?')
-      .get(req.params.productId, req.user.tenantId);
+      .get(req.params.productId, req.shopId);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const newStock = Math.max(0, product.stock + delta);
