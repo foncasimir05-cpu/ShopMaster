@@ -222,7 +222,7 @@ export default function POSScreen({ navigation }) {
             )}
           </View>
           <View style={styles.discountWrap}>
-            <Text style={styles.discountLabel}>Disc $</Text>
+            <Text style={styles.discountLabel}>Disc XAF</Text>
             <TextInput
               style={styles.discountInput}
               value={discount}

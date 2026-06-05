@@ -27,8 +27,8 @@ function generateInvoicePdf({ sale, items, tenant }) {
     ...items.map(i => [
       i.product_name,
       { text: String(i.quantity), alignment: 'right' },
-      { text: `$${i.unit_price.toFixed(2)}`, alignment: 'right' },
-      { text: `$${i.subtotal.toFixed(2)}`, alignment: 'right' },
+      { text: `XAF ${Number(i.unit_price).toLocaleString('fr-CM')}`, alignment: 'right' },
+      { text: `XAF ${Number(i.subtotal).toLocaleString('fr-CM')}`, alignment: 'right' },
     ]),
   ];
 
@@ -44,9 +44,9 @@ function generateInvoicePdf({ sale, items, tenant }) {
           body: rows,
         },
       },
-      { text: `Discount: -$${Number(sale.discount).toFixed(2)}`, alignment: 'right', margin: [0, 8, 0, 0] },
-      { text: `Tax: +$${Number(sale.tax).toFixed(2)}`, alignment: 'right' },
-      { text: `Total: $${Number(sale.total).toFixed(2)}`, style: 'total', alignment: 'right', margin: [0, 4, 0, 0] },
+      { text: `Discount: -XAF ${Number(sale.discount).toLocaleString('fr-CM')}`, alignment: 'right', margin: [0, 8, 0, 0] },
+      { text: `Tax: +XAF ${Number(sale.tax).toLocaleString('fr-CM')}`, alignment: 'right' },
+      { text: `Total: XAF ${Number(sale.total).toLocaleString('fr-CM')}`, style: 'total', alignment: 'right', margin: [0, 4, 0, 0] },
     ],
     styles: {
       header: { fontSize: 20, bold: true, margin: [0, 0, 0, 8] },

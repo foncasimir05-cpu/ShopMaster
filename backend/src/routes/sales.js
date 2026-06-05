@@ -169,6 +169,12 @@ router.post('/', (req, res, next) => {
       const taxAmount = (subtotal - discountAmount) * Number(taxRate);
       const total = subtotal - discountAmount + taxAmount;
 
+      const shopRow = db.prepare('SELECT id FROM tenants WHERE id = ?').get(req.shopId);
+      const userRow = db.prepare('SELECT id FROM users WHERE id = ?').get(req.user.id);
+      console.log('Shop exists:', shopRow);
+      console.log('User exists:', userRow);
+      console.log('Sale payload:', { shopId: req.shopId, cashierId: req.user.id, items });
+
       db.prepare(
         `INSERT INTO sales (id, tenant_id, user_id, total, discount, tax, payment_method)
          VALUES (?,?,?,?,?,?,?)`

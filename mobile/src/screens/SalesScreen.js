@@ -126,7 +126,7 @@ export default function SalesScreen() {
 
           <View style={styles.summary}>
             <View style={styles.discountRow}>
-              <Text>Discount ($):</Text>
+              <Text>Discount (XAF):</Text>
               <TextInput
                 style={styles.discountInput}
                 value={discount}
