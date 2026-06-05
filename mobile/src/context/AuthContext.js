@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import { getItem, setItem, removeItem } from '../services/storage';
+
+const isTokenExpired = (token) => {
+  try {
+    const { exp } = jwtDecode(token);
+    return Date.now() >= exp * 1000;
+  } catch {
+    return true;
+  }
+};
 
 const AuthContext = createContext(null);
 
@@ -15,7 +25,11 @@ export function AuthProvider({ children }) {
           getItem('auth_token'),
           getItem('user'),
         ]);
-        if (token) setAccessToken(token);
+        if (token && !isTokenExpired(token)) {
+          setAccessToken(token);
+        } else {
+          await removeItem('auth_token');
+        }
         if (userJson) setUser(JSON.parse(userJson));
       } catch {}
       setLoading(false);

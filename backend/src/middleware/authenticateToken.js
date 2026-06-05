@@ -13,7 +13,7 @@ function signAccessToken(user) {
       shopName: user.shopName,
     },
     ACCESS_SECRET,
-    { expiresIn: '8h' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
 }
 
