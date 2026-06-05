@@ -130,9 +130,9 @@ router.post('/', (req, res, next) => {
     const saleId = uuidv4();
 
     const result = db.transaction(() => {
+      // Validate all items and compute totals before any writes
       let subtotal = 0;
-
-      const insertedItems = items.map(({ productId, quantity, unitPrice }) => {
+      const resolved = items.map(({ productId, quantity, unitPrice }) => {
         const product = db
           .prepare('SELECT * FROM products WHERE id = ? AND tenant_id = ?')
           .get(productId, req.shopId);
@@ -140,11 +140,24 @@ router.post('/', (req, res, next) => {
         if (product.stock < quantity) {
           throw Object.assign(new Error(`Insufficient stock for "${product.name}"`), { status: 422 });
         }
-
         const price = unitPrice != null ? Number(unitPrice) : product.price;
         const lineTotal = price * quantity;
         subtotal += lineTotal;
+        return { product, productId, quantity, price, lineTotal };
+      });
 
+      const discountAmount = Number(discount);
+      const taxAmount = (subtotal - discountAmount) * Number(taxRate);
+      const total = subtotal - discountAmount + taxAmount;
+
+      // Insert the sale parent row first — sale_items and stock_movements
+      // both FK-reference sales(id), so the parent must exist before children.
+      db.prepare(
+        `INSERT INTO sales (id, tenant_id, user_id, total, discount, tax, payment_method)
+         VALUES (?,?,?,?,?,?,?)`
+      ).run(saleId, req.shopId, req.user.id, total, discountAmount, taxAmount, paymentMethod);
+
+      const insertedItems = resolved.map(({ product, productId, quantity, price, lineTotal }) => {
         db.prepare(
           "UPDATE products SET stock = stock - ?, updated_at = datetime('now') WHERE id = ?"
         ).run(quantity, productId);
@@ -164,21 +177,6 @@ router.post('/', (req, res, next) => {
           quantity, unit_price: price, subtotal: lineTotal,
         };
       });
-
-      const discountAmount = Number(discount);
-      const taxAmount = (subtotal - discountAmount) * Number(taxRate);
-      const total = subtotal - discountAmount + taxAmount;
-
-      const shopRow = db.prepare('SELECT id FROM tenants WHERE id = ?').get(req.shopId);
-      const userRow = db.prepare('SELECT id FROM users WHERE id = ?').get(req.user.id);
-      console.log('Shop exists:', shopRow);
-      console.log('User exists:', userRow);
-      console.log('Sale payload:', { shopId: req.shopId, cashierId: req.user.id, items });
-
-      db.prepare(
-        `INSERT INTO sales (id, tenant_id, user_id, total, discount, tax, payment_method)
-         VALUES (?,?,?,?,?,?,?)`
-      ).run(saleId, req.shopId, req.user.id, total, discountAmount, taxAmount, paymentMethod);
 
       return { saleId, subtotal, discount: discountAmount, tax: taxAmount, total, paymentMethod, items: insertedItems };
     })();
