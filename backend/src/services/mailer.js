@@ -6,10 +6,12 @@ function getTransporter() {
   if (_transporter) return _transporter;
   const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
   if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS) return null;
+  const port = parseInt(EMAIL_PORT) || 587;
   _transporter = nodemailer.createTransport({
     host: EMAIL_HOST,
-    port: parseInt(EMAIL_PORT) || 587,
-    secure: parseInt(EMAIL_PORT) === 465,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587,
     auth: { user: EMAIL_USER, pass: EMAIL_PASS },
   });
   return _transporter;

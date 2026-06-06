@@ -189,18 +189,23 @@ router.post('/forgot', async (req, res, next) => {
         <p style="color:#6b7280;font-size:13px;margin-top:16px;">This code expires in <strong>15 minutes</strong>. If you did not request this, ignore this email.</p>
       </div>`;
 
-    const sent = await sendMail({ to: email.trim(), subject: 'ShopMaster — Account Recovery', html });
-
-    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
-    const isProd = process.env.NODE_ENV === 'production';
-
-    if (!sent) {
-      console.warn(`[Forgot] OTP for ${email}: ${otp}`);
+    let sent = false;
+    let sendError = null;
+    try {
+      sent = await sendMail({ to: email.trim(), subject: 'ShopMaster — Account Recovery', html });
+    } catch (mailErr) {
+      sendError = mailErr.message;
+      console.error('[Forgot] SMTP error:', mailErr.message);
     }
 
-    // In production with email sent: return shops but not OTP
-    // In dev/no-email: return OTP too so the app can show it for testing
-    res.json({ sent, shops, ...(!isProd && { devOtp: otp }) });
+    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
+
+    if (!sent) {
+      console.warn(`[Forgot] OTP for ${email}: ${otp}${sendError ? ` (SMTP error: ${sendError})` : ''}`);
+    }
+
+    // Always return devOtp when email wasn't delivered so user can still recover
+    res.json({ sent, shops, ...(!sent && { devOtp: otp }) });
   } catch (err) { next(err); }
 });
 

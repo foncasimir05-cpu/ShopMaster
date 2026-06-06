@@ -40,8 +40,8 @@ export default function ForgotScreen({ navigation }) {
         setOtp(data.devOtp);
       }
       setStep(2);
-    } catch {
-      Alert.alert('Error', 'Could not send reset code. Please try again.');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error ?? 'Could not reach the server. Check your connection.');
     } finally {
       setSending(false);
     }
