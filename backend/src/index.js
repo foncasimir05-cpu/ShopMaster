@@ -34,10 +34,13 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-initDb();
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.warn(`ShopMaster API running on http://0.0.0.0:${PORT}`);
+initDb().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.warn(`ShopMaster API running on http://0.0.0.0:${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialise database:', err);
+  process.exit(1);
 });
 
 module.exports = app;

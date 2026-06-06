@@ -1,5 +1,6 @@
 const express = require('express');
 const { getDb } = require('../config/database');
+const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
 const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -18,7 +19,7 @@ router.get('/', (req, res, next) => {
     }
 
     query += ' ORDER BY stock ASC';
-    res.json(db.prepare(query).all(...params));
+    res.json(dbAll(db, query, params));
   } catch (err) {
     next(err);
   }
@@ -33,15 +34,17 @@ router.patch('/:productId/adjust', requireRole('admin'), (req, res, next) => {
     }
 
     const db = getDb();
-    const product = db
-      .prepare('SELECT * FROM products WHERE id = ? AND tenant_id = ?')
-      .get(req.params.productId, req.shopId);
+    const product = dbGet(db,
+      'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
+      [req.params.productId, req.shopId]
+    );
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const newStock = Math.max(0, product.stock + delta);
-    db.prepare(
-      "UPDATE products SET stock = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(newStock, req.params.productId);
+    dbRun(db,
+      "UPDATE products SET stock = ?, updated_at = datetime('now') WHERE id = ?",
+      [newStock, req.params.productId]
+    );
 
     res.json({ productId: req.params.productId, previousStock: product.stock, newStock, delta, reason });
   } catch (err) {

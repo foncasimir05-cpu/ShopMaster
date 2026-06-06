@@ -1,24 +1,43 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const initSqlJs = require('sql.js');
 const fs = require('fs');
+const path = require('path');
 
 const DB_PATH = process.env.DB_PATH || './data/shopmaster.db';
-
-let db;
+let db = null;
 
 function getDb() {
   if (!db) throw new Error('Database not initialised. Call initDb() first.');
   return db;
 }
 
-function initDb() {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+async function initDb() {
+  const SQL = await initSqlJs();
 
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  if (fs.existsSync(DB_PATH)) {
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+  } else {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    db = new SQL.Database();
+  }
 
+  db.run('PRAGMA foreign_keys = ON');
+
+  db._inTransaction = false;
+  db._save = () => {
+    const data = db.export();
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, Buffer.from(data));
+  };
+
+  createTables();
+  console.warn('Database initialised at', DB_PATH);
+  return db;
+}
+
+function createTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS tenants (
       id          TEXT PRIMARY KEY,
@@ -33,6 +52,7 @@ function initDb() {
       email       TEXT NOT NULL,
       password    TEXT NOT NULL,
       role        TEXT NOT NULL DEFAULT 'staff',
+      is_active   INTEGER NOT NULL DEFAULT 1,
       created_at  TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(tenant_id, email)
     );
@@ -60,14 +80,15 @@ function initDb() {
     );
 
     CREATE TABLE IF NOT EXISTS sales (
-      id          TEXT PRIMARY KEY,
-      tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-      user_id     TEXT NOT NULL REFERENCES users(id),
-      total       REAL NOT NULL,
-      discount    REAL NOT NULL DEFAULT 0,
-      tax         REAL NOT NULL DEFAULT 0,
-      status      TEXT NOT NULL DEFAULT 'completed',
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id             TEXT PRIMARY KEY,
+      tenant_id      TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      user_id        TEXT NOT NULL REFERENCES users(id),
+      total          REAL NOT NULL,
+      discount       REAL NOT NULL DEFAULT 0,
+      tax            REAL NOT NULL DEFAULT 0,
+      status         TEXT NOT NULL DEFAULT 'completed',
+      payment_method TEXT NOT NULL DEFAULT 'cash',
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS sale_items (
@@ -78,9 +99,7 @@ function initDb() {
       unit_price  REAL NOT NULL,
       subtotal    REAL NOT NULL
     );
-  `);
 
-  db.exec(`
     CREATE TABLE IF NOT EXISTS stock_movements (
       id          TEXT PRIMARY KEY,
       tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -91,9 +110,7 @@ function initDb() {
       reason      TEXT,
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
 
-  db.exec(`
     CREATE TABLE IF NOT EXISTS shop_settings (
       tenant_id       TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
       name            TEXT NOT NULL DEFAULT '',
@@ -109,12 +126,10 @@ function initDb() {
     );
   `);
 
-  // Idempotent migrations
-  try { db.exec("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"); } catch {}
-  try { db.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"); } catch {}
-  try { db.exec("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
-
-  console.warn('Database initialised at', DB_PATH);
+  // Idempotent migrations for existing databases
+  try { db.run("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"); } catch {}
+  try { db.run("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"); } catch {}
+  try { db.run("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
 }
 
 module.exports = { initDb, getDb };

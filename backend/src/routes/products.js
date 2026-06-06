@@ -1,6 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
+const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
 
 const router = express.Router();
 
@@ -27,8 +28,7 @@ router.get('/', (req, res, next) => {
     query += ' ORDER BY name ASC LIMIT ? OFFSET ?';
     params.push(Number(limit), offset);
 
-    const products = db.prepare(query).all(...params);
-    res.json(products);
+    res.json(dbAll(db, query, params));
   } catch (err) {
     next(err);
   }
@@ -38,9 +38,10 @@ router.get('/', (req, res, next) => {
 router.get('/:id', (req, res, next) => {
   try {
     const db = getDb();
-    const product = db
-      .prepare('SELECT * FROM products WHERE id = ? AND tenant_id = ?')
-      .get(req.params.id, req.shopId);
+    const product = dbGet(db,
+      'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
+      [req.params.id, req.shopId]
+    );
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (err) {
@@ -56,13 +57,13 @@ router.post('/', (req, res, next) => {
 
     const db = getDb();
     const id = uuidv4();
-    db.prepare(
+    dbRun(db,
       `INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, req.shopId, name, sku, barcode, price ?? 0, cost ?? 0, stock ?? 0, category);
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, req.shopId, name, sku, barcode, price ?? 0, cost ?? 0, stock ?? 0, category]
+    );
 
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
-    res.status(201).json(product);
+    res.status(201).json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [id]));
   } catch (err) {
     next(err);
   }
@@ -72,20 +73,22 @@ router.post('/', (req, res, next) => {
 router.put('/:id', (req, res, next) => {
   try {
     const db = getDb();
-    const existing = db
-      .prepare('SELECT id FROM products WHERE id = ? AND tenant_id = ?')
-      .get(req.params.id, req.shopId);
+    const existing = dbGet(db,
+      'SELECT id FROM products WHERE id = ? AND tenant_id = ?',
+      [req.params.id, req.shopId]
+    );
     if (!existing) return res.status(404).json({ error: 'Product not found' });
 
     const { name, sku, barcode, price, cost, stock, category } = req.body;
-    db.prepare(
+    dbRun(db,
       `UPDATE products SET name=COALESCE(?,name), sku=COALESCE(?,sku), barcode=COALESCE(?,barcode),
        price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock),
        category=COALESCE(?,category), updated_at=datetime('now')
-       WHERE id = ? AND tenant_id = ?`
-    ).run(name, sku, barcode, price, cost, stock, category, req.params.id, req.shopId);
+       WHERE id = ? AND tenant_id = ?`,
+      [name, sku, barcode, price, cost, stock, category, req.params.id, req.shopId]
+    );
 
-    res.json(db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id));
+    res.json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [req.params.id]));
   } catch (err) {
     next(err);
   }
@@ -95,9 +98,10 @@ router.put('/:id', (req, res, next) => {
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getDb();
-    const info = db
-      .prepare('DELETE FROM products WHERE id = ? AND tenant_id = ?')
-      .run(req.params.id, req.shopId);
+    const info = dbRun(db,
+      'DELETE FROM products WHERE id = ? AND tenant_id = ?',
+      [req.params.id, req.shopId]
+    );
     if (info.changes === 0) return res.status(404).json({ error: 'Product not found' });
     res.json({ deleted: true });
   } catch (err) {
