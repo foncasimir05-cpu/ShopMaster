@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Switch, ActivityIndicator,
+  StyleSheet, ScrollView, Switch, ActivityIndicator, Clipboard, ToastAndroid, Platform, Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -70,6 +70,10 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.heading}>Settings</Text>
+
+      <Section title="Account">
+        <InfoRow label="Shop ID" value={user?.shopId} />
+      </Section>
 
       <Section title="Shop Profile">
         <Field label="Shop Name" value={name} onChangeText={setName} />
@@ -140,6 +144,26 @@ function Section({ title, children }) {
   );
 }
 
+function InfoRow({ label, value }) {
+  const copy = () => {
+    Clipboard.setString(value);
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Copied to clipboard', ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Copied', 'Shop ID copied to clipboard.');
+    }
+  };
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity style={styles.infoRow} onPress={copy} activeOpacity={0.7}>
+        <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">{value}</Text>
+        <Text style={styles.copyHint}>Copy</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function Field({ label, ...props }) {
   return (
     <View style={styles.fieldWrap}>
@@ -158,6 +182,9 @@ const styles = StyleSheet.create({
   fieldWrap: { gap: 4 },
   label: { fontSize: 13, fontWeight: '600', color: '#374151' },
   input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  infoValue: { fontSize: 13, color: '#374151', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', flex: 1, marginRight: 8 },
+  copyHint: { fontSize: 12, fontWeight: '700', color: '#1a56db' },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   staffBtn: { backgroundColor: '#eff6ff', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 12 },
   staffBtnText: { color: '#1a2e4a', fontWeight: '700', fontSize: 15 },
