@@ -159,9 +159,12 @@ export default function ProductsScreen() {
             <View style={styles.barcodeRow}>
               <TextInput
                 style={[styles.input, styles.barcodeInput]}
-                placeholder="Barcode (optional)"
+                placeholder="Barcode (optional) — or scan with a USB reader"
                 value={form.barcode}
                 onChangeText={v => setForm(f => ({ ...f, barcode: v }))}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => {}}
               />
               {CAN_SCAN && (
                 <TouchableOpacity
