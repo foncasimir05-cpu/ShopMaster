@@ -20,7 +20,6 @@ export default function ForgotScreen({ navigation }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetting, setResetting] = useState(false);
-  const [devOtp, setDevOtp] = useState('');
   const [emailSentTo, setEmailSentTo] = useState('');
 
   const handleSend = async () => {
@@ -35,10 +34,6 @@ export default function ForgotScreen({ navigation }) {
       setShops(data.shops);
       setSelectedShopId(data.shops[0].shopId);
       setEmailSentTo(email.trim().toLowerCase());
-      if (data.devOtp) {
-        setDevOtp(data.devOtp);
-        setOtp(data.devOtp);
-      }
       setStep(2);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error ?? 'Could not reach the server. Check your connection.');
@@ -106,17 +101,10 @@ export default function ForgotScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.card}>
-            {devOtp ? (
-              <View style={styles.devBanner}>
-                <Text style={styles.devTitle}>Email not configured — test mode</Text>
-                <Text style={styles.devText}>Your Shop ID and reset code are shown below (code auto-filled):</Text>
-              </View>
-            ) : (
-              <View style={styles.infoBanner}>
-                <Ionicons name="mail-outline" size={16} color="#1d4ed8" />
-                <Text style={styles.infoText}>Check your email for your Shop ID(s) and 6-digit code.</Text>
-              </View>
-            )}
+            <View style={styles.infoBanner}>
+              <Ionicons name="mail-outline" size={16} color="#1d4ed8" />
+              <Text style={styles.infoText}>Check your email for your Shop ID(s) and 6-digit code.</Text>
+            </View>
 
             {shops.length > 1 && (
               <>
@@ -211,9 +199,6 @@ const styles = StyleSheet.create({
   resendText: { color: '#1a56db', fontSize: 13, fontWeight: '600' },
   infoBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#eff6ff', borderRadius: 8, padding: 12 },
   infoText: { flex: 1, color: '#1d4ed8', fontSize: 13 },
-  devBanner: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 12 },
-  devTitle: { fontWeight: '700', color: '#92400e', fontSize: 13, marginBottom: 2 },
-  devText: { color: '#78350f', fontSize: 12 },
   shopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12 },
   shopRowSelected: { borderColor: '#1a2e4a', backgroundColor: '#f0f4ff' },
   radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#9ca3af' },

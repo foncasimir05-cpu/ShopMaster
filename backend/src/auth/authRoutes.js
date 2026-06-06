@@ -190,22 +190,22 @@ router.post('/forgot', async (req, res, next) => {
       </div>`;
 
     let sent = false;
-    let sendError = null;
     try {
       sent = await sendMail({ to: email.trim(), subject: 'ShopMaster — Account Recovery', html });
     } catch (mailErr) {
-      sendError = mailErr.message;
       console.error('[Forgot] SMTP error:', mailErr.message);
     }
 
-    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
-
     if (!sent) {
-      console.warn(`[Forgot] OTP for ${email}: ${otp}${sendError ? ` (SMTP error: ${sendError})` : ''}`);
+      // Roll back the tokens so they can't be guessed — the code must arrive by email
+      users.forEach(u => dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]));
+      return res.status(503).json({
+        error: 'Could not send the recovery email. Please contact your administrator to check the email configuration.',
+      });
     }
 
-    // Always return devOtp when email wasn't delivered so user can still recover
-    res.json({ sent, shops, ...(!sent && { devOtp: otp }) });
+    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
+    res.json({ sent: true, shops });
   } catch (err) { next(err); }
 });
 
