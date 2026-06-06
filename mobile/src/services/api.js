@@ -64,6 +64,12 @@ export const register = (shopName, email, password) =>
 export const forgotPassword = email =>
   api.post('/auth/forgot', { email }).then(r => r.data);
 
+export const getSecurityQuestion = (email, shopId) =>
+  api.post('/auth/security-question', { email, shopId }).then(r => r.data);
+
+export const verifySecurityAnswer = (email, shopId, answer) =>
+  api.post('/auth/verify-security', { email, shopId, answer }).then(r => r.data);
+
 export const resetPassword = (email, shopId, otp, newPassword) =>
   api.post('/auth/reset-password', { email, shopId, otp, newPassword }).then(r => r.data);
 

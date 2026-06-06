@@ -24,24 +24,28 @@ function generateRefreshToken(db, userId) {
 // POST /api/auth/register-shop
 router.post('/register-shop', async (req, res, next) => {
   try {
-    const { shopName, ownerName, email, password } = req.body;
+    const { shopName, ownerName, email, password, securityQuestion, securityAnswer } = req.body;
     if (!shopName || !ownerName || !email || !password) {
       return res.status(400).json({ error: 'shopName, ownerName, email and password are required' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
+    if (!securityQuestion || !securityAnswer) {
+      return res.status(400).json({ error: 'A security question and answer are required' });
+    }
 
     const db = getDb();
     const shopId = uuidv4();
     const userId = uuidv4();
     const hash = await bcrypt.hash(password, 12);
+    const answerHash = await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10);
 
     dbTransaction(db, () => {
       dbRun(db, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
       dbRun(db,
-        'INSERT INTO users (id, tenant_id, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)',
-        [userId, shopId, ownerName, email, hash, 'admin']
+        'INSERT INTO users (id, tenant_id, name, email, password, role, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, shopId, ownerName, email, hash, 'admin', securityQuestion, answerHash]
       );
     });
 
@@ -141,14 +145,13 @@ router.post('/forgot', async (req, res, next) => {
 
     const db = getDb();
     const users = dbAll(db,
-      `SELECT u.id, u.name, u.tenant_id AS shopId, t.name AS shopName
+      `SELECT u.id, u.name, u.tenant_id AS shopId, t.name AS shopName, u.security_question
        FROM users u JOIN tenants t ON u.tenant_id = t.id
        WHERE LOWER(u.email) = LOWER(?)`,
       [email.trim()]
     );
 
     if (users.length === 0) {
-      // Don't reveal whether email exists — always return shops array (empty)
       return res.json({ sent: false, shops: [] });
     }
 
@@ -196,16 +199,79 @@ router.post('/forgot', async (req, res, next) => {
       console.error('[Forgot] SMTP error:', mailErr.message);
     }
 
+    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
+
     if (!sent) {
-      // Roll back the tokens so they can't be guessed — the code must arrive by email
+      const hasSecurityQuestion = users.some(u => u.security_question);
+      if (hasSecurityQuestion) {
+        // Keep OTP tokens — they'll be revealed only after security answer is verified
+        return res.json({ sent: false, requiresSecurityQuestion: true, shops });
+      }
+      // No fallback available — clear tokens and fail
       users.forEach(u => dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]));
       return res.status(503).json({
         error: 'Could not send the recovery email. Please contact your administrator to check the email configuration.',
       });
     }
 
-    const shops = users.map(u => ({ shopId: u.shopId, shopName: u.shopName }));
     res.json({ sent: true, shops });
+  } catch (err) { next(err); }
+});
+
+// POST /api/auth/security-question  — fetch the question for a specific shop+email
+router.post('/security-question', async (req, res, next) => {
+  try {
+    const { email, shopId } = req.body;
+    if (!email || !shopId) return res.status(400).json({ error: 'email and shopId are required' });
+
+    const db = getDb();
+    const user = dbGet(db,
+      'SELECT security_question FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ?',
+      [email.trim(), shopId.trim()]
+    );
+
+    if (!user || !user.security_question) {
+      return res.status(404).json({ error: 'No security question found for this account.' });
+    }
+
+    res.json({ question: user.security_question });
+  } catch (err) { next(err); }
+});
+
+// POST /api/auth/verify-security  — verify answer, return OTP so client can proceed to reset
+router.post('/verify-security', async (req, res, next) => {
+  try {
+    const { email, shopId, answer } = req.body;
+    if (!email || !shopId || !answer) {
+      return res.status(400).json({ error: 'email, shopId and answer are required' });
+    }
+
+    const db = getDb();
+    const user = dbGet(db,
+      'SELECT id, security_answer FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ?',
+      [email.trim(), shopId.trim()]
+    );
+
+    if (!user || !user.security_answer) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const match = await bcrypt.compare(answer.trim().toLowerCase(), user.security_answer);
+    if (!match) {
+      return res.status(401).json({ error: 'Incorrect answer. Please try again.' });
+    }
+
+    // Find the pending OTP token created by /forgot
+    const record = dbGet(db,
+      'SELECT token FROM password_reset_tokens WHERE user_id = ? AND used = 0 AND expires_at > ?',
+      [user.id, new Date().toISOString()]
+    );
+
+    if (!record) {
+      return res.status(400).json({ error: 'No active reset request found. Please start the recovery process again.' });
+    }
+
+    res.json({ otp: record.token });
   } catch (err) { next(err); }
 });
 

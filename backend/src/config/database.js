@@ -140,6 +140,8 @@ function createTables() {
   try { db.run("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
   try { db.run("ALTER TABLE tenants ADD COLUMN parent_tenant_id TEXT"); } catch {}
   try { db.run("ALTER TABLE tenants ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { db.run("ALTER TABLE users ADD COLUMN security_question TEXT"); } catch {}
+  try { db.run("ALTER TABLE users ADD COLUMN security_answer TEXT"); } catch {}
 }
 
 module.exports = { initDb, getDb };
