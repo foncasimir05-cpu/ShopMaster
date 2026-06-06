@@ -1,16 +1,16 @@
 import axios from 'axios';
 import { getItem, setItem, removeItem } from './storage';
 
+const RAILWAY_URL = 'https://shopmaster-backend-production.up.railway.app/api/v1';
+
 const BASE_URL = (() => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  // React Native web (browser) → use localhost
-  if (typeof window !== 'undefined' && window.location) {
-    return 'http://localhost:3001/api/v1';
-  }
-  // Physical device → use Railway backend
-  return 'https://shopmaster-backend-production.up.railway.app/api/v1';
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  // Electron desktop: loaded from file:// — always use Railway
+  if (typeof window !== 'undefined' && window.location?.protocol === 'file:') return RAILWAY_URL;
+  // Web browser dev server
+  if (typeof window !== 'undefined' && window.location) return 'http://localhost:3001/api/v1';
+  // Native mobile fallback
+  return RAILWAY_URL;
 })();
 
 // Origin only (no /api path) — used by auth screens that call /api/auth/...

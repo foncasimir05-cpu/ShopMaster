@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '../services/api';
 import { formatCurrency } from 'shopmaster-shared';
 import BarcodeScanner from '../components/BarcodeScanner';
+
+const CAN_SCAN = Platform.OS !== 'web';
 
 export default function ProductsScreen() {
   const [products, setProducts] = useState([]);
@@ -152,7 +155,7 @@ export default function ProductsScreen() {
               />
             ))}
 
-            {/* Barcode field with scan button */}
+            {/* Barcode field with scan button (scan hidden on web/desktop) */}
             <View style={styles.barcodeRow}>
               <TextInput
                 style={[styles.input, styles.barcodeInput]}
@@ -160,12 +163,14 @@ export default function ProductsScreen() {
                 value={form.barcode}
                 onChangeText={v => setForm(f => ({ ...f, barcode: v }))}
               />
-              <TouchableOpacity
-                style={styles.scanBtn}
-                onPress={() => setScannerVisible(true)}
-              >
-                <Ionicons name="barcode-outline" size={22} color="#fff" />
-              </TouchableOpacity>
+              {CAN_SCAN && (
+                <TouchableOpacity
+                  style={styles.scanBtn}
+                  onPress={() => setScannerVisible(true)}
+                >
+                  <Ionicons name="barcode-outline" size={22} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.modalActions}>
@@ -180,13 +185,15 @@ export default function ProductsScreen() {
         </View>
       </Modal>
 
-      {/* Barcode scanner modal */}
-      <Modal visible={scannerVisible} animationType="slide">
-        <BarcodeScanner
-          onScan={handleBarcodeScan}
-          onClose={() => setScannerVisible(false)}
-        />
-      </Modal>
+      {/* Barcode scanner modal — native only */}
+      {CAN_SCAN && (
+        <Modal visible={scannerVisible} animationType="slide">
+          <BarcodeScanner
+            onScan={handleBarcodeScan}
+            onClose={() => setScannerVisible(false)}
+          />
+        </Modal>
+      )}
     </View>
   );
 }
