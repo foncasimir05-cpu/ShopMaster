@@ -9,8 +9,8 @@ const BASE_URL = (() => {
   if (typeof window !== 'undefined' && window.location) {
     return 'http://localhost:3001/api/v1';
   }
-  // Physical device / LAN → use PC IP
-  return 'http://10.67.115.93:3001/api/v1';
+  // Physical device → use Railway backend
+  return 'https://shopmaster-mobile-production.up.railway.app/api/v1';
 })();
 
 // Origin only (no /api path) — used by auth screens that call /api/auth/...
