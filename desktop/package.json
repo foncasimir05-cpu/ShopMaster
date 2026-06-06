@@ -1,21 +1,24 @@
 {
   "name": "shopmaster-desktop",
   "version": "1.0.0",
-  "description": "ShopMaster POS — Desktop App",
+  "description": "ShopMaster POS - Desktop App",
+  "author": "ShopMaster",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "start:dev": "cross-env NODE_ENV=development electron .",
     "build:web": "cd ../mobile && npx expo export --platform web --output-dir ../desktop/web-build",
-    "pack:win": "electron-builder --win --x64",
-    "pack:win:dir": "electron-builder --win --dir",
-    "build": "npm run build:web && npm run pack:win"
+    "pack:portable": "node pack-portable.js",
+    "pack:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
+    "pack:win:dir": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --dir",
+    "build": "npm run build:web && npm run pack:portable"
   },
   "build": {
     "appId": "com.shopmaster.desktop",
     "productName": "ShopMaster",
-    "copyright": "Copyright © 2024 ShopMaster",
+    "copyright": "Copyright 2024 ShopMaster",
+    "asar": false,
     "directories": {
       "output": "dist",
       "buildResources": "build-resources"
@@ -35,9 +38,6 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false,
-      "installerIcon": "../mobile/assets/icon.png",
-      "uninstallerIcon": "../mobile/assets/icon.png",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ShopMaster"
@@ -46,6 +46,6 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "electron": "^31.7.7",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^24.13.3"
   }
 }
