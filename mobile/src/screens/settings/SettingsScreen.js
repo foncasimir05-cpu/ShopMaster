@@ -10,7 +10,7 @@ import { getSettings, updateSettings, getPremiumStatus, upgradeToPremium } from 
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -166,6 +166,16 @@ export default function SettingsScreen() {
         )
       )}
 
+      {user?.role === 'admin' && (
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => Alert.alert(
+          'Log Out',
+          'Are you sure you want to log out?',
+          [{ text: 'Cancel', style: 'cancel' }, { text: 'Log Out', style: 'destructive', onPress: logout }]
+        )}>
+          <Text style={styles.logoutBtnText}>Log Out</Text>
+        </TouchableOpacity>
+      )}
+
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       {saved ? <Text style={styles.savedText}>Settings saved.</Text> : null}
 
@@ -243,6 +253,8 @@ const styles = StyleSheet.create({
   upgradeBtn: { backgroundColor: '#d97706', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   upgradeBtnDisabled: { opacity: 0.6 },
   upgradeBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  logoutBtn: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8, marginBottom: 4 },
+  logoutBtnText: { color: '#dc2626', fontWeight: '700', fontSize: 15 },
   errorText: { color: '#dc2626', fontSize: 13, marginBottom: 8, textAlign: 'center' },
   savedText: { color: '#059669', fontSize: 13, marginBottom: 8, textAlign: 'center' },
   saveBtn: { backgroundColor: '#1a2e4a', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 },

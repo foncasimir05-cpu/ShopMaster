@@ -27,8 +27,11 @@ router.post('/', async (req, res, next) => {
   try {
     const db = getDb();
     const tenant = dbGet(db, 'SELECT is_premium FROM tenants WHERE id = ?', [req.shopId]);
-    if (!tenant?.is_premium) {
-      return res.status(403).json({ error: 'Premium subscription required to create branches' });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Shop not found. Please log out and log in again.' });
+    }
+    if (!tenant.is_premium) {
+      return res.status(403).json({ error: 'Premium subscription required. Go to Settings → Activate Premium first.' });
     }
     const { branchName, adminName, adminEmail, adminPassword } = req.body;
     if (!branchName || !adminName || !adminEmail || !adminPassword) {

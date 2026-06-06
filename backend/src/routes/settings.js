@@ -97,6 +97,8 @@ settingsRouter.get('/premium-status', (req, res, next) => {
 settingsRouter.post('/upgrade', requireRole('admin', 'owner'), (req, res, next) => {
   try {
     const db = getDb();
+    const tenant = dbGet(db, 'SELECT id FROM tenants WHERE id = ?', [req.shopId]);
+    if (!tenant) return res.status(404).json({ error: 'Shop not found. Please log out and log in again.' });
     dbRun(db, 'UPDATE tenants SET is_premium = 1 WHERE id = ?', [req.shopId]);
     res.json({ isPremium: true });
   } catch (err) { next(err); }
