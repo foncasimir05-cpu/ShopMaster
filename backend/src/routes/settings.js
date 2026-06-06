@@ -81,6 +81,27 @@ settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), (req, res, nex
   }
 });
 
+// GET /api/v1/settings/premium-status
+settingsRouter.get('/premium-status', (req, res, next) => {
+  try {
+    const db = getDb();
+    const tenant = dbGet(db, 'SELECT is_premium, parent_tenant_id FROM tenants WHERE id = ?', [req.shopId]);
+    res.json({
+      isPremium: Boolean(tenant?.is_premium),
+      isSubShop: Boolean(tenant?.parent_tenant_id),
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/settings/upgrade
+settingsRouter.post('/upgrade', requireRole('admin', 'owner'), (req, res, next) => {
+  try {
+    const db = getDb();
+    dbRun(db, 'UPDATE tenants SET is_premium = 1 WHERE id = ?', [req.shopId]);
+    res.json({ isPremium: true });
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/users
 usersRouter.get('/', requireRole('admin', 'owner'), (req, res, next) => {
   try {

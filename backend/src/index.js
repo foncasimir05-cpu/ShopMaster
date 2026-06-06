@@ -8,6 +8,7 @@ const productRoutes = require('./routes/products');
 const salesRoutes = require('./routes/sales');
 const inventoryRoutes = require('./routes/inventory');
 const { settingsRouter, usersRouter } = require('./routes/settings');
+const subShopsRoutes = require('./routes/subShops');
 const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
@@ -26,6 +27,7 @@ app.use('/api/v1/products', authenticateToken, productRoutes);
 app.use('/api/v1/sales', authenticateToken, salesRoutes);
 app.use('/api/v1/inventory', authenticateToken, inventoryRoutes);
 app.use('/api/v1/settings', authenticateToken, settingsRouter);
+app.use('/api/v1/sub-shops', authenticateToken, subShopsRoutes);
 app.use('/api/v1/users', authenticateToken, usersRouter);
 
 // Global error handler

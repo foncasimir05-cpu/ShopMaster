@@ -92,6 +92,13 @@ export const adjustStock = (productId, delta, reason) =>
 export const getSettings = () => api.get('/settings').then(r => r.data);
 export const updateSettings = data => api.put('/settings', data).then(r => r.data);
 
+// Premium & Branches
+export const getPremiumStatus = () => api.get('/settings/premium-status').then(r => r.data);
+export const upgradeToPremium = () => api.post('/settings/upgrade').then(r => r.data);
+export const getSubShops = () => api.get('/sub-shops').then(r => r.data);
+export const createSubShop = data => api.post('/sub-shops', data).then(r => r.data);
+export const switchToSubShopApi = id => api.post(`/sub-shops/${id}/switch`).then(r => r.data);
+
 // Staff / User management
 export const getStaff = () => api.get('/users').then(r => r.data);
 export const createStaff = data => api.post('/users', data).then(r => r.data);

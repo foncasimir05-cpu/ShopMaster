@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import POSScreen from './src/screens/pos/POSScreen';
 import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UserManagementScreen from './src/screens/settings/UserManagementScreen';
+import SubShopsScreen from './src/screens/settings/SubShopsScreen';
 
 const Stack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
@@ -36,9 +37,34 @@ function SettingsNavigator() {
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
       <SettingsStack.Screen name="UserManagement" component={UserManagementScreen} />
+      <SettingsStack.Screen name="SubShops" component={SubShopsScreen} />
     </SettingsStack.Navigator>
   );
 }
+
+function SubShopBanner() {
+  const { isViewingSubShop, user, switchBackToParent, parentUser } = useAuth();
+  if (!isViewingSubShop) return null;
+  return (
+    <View style={bannerStyles.bar}>
+      <Ionicons name="storefront-outline" size={14} color="#fff" />
+      <Text style={bannerStyles.text} numberOfLines={1}>
+        Viewing: <Text style={bannerStyles.bold}>{user?.shopName}</Text>
+      </Text>
+      <TouchableOpacity onPress={switchBackToParent} style={bannerStyles.btn}>
+        <Text style={bannerStyles.btnText}>← Back to {parentUser?.shopName ?? 'Main Shop'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  bar: { backgroundColor: '#1a2e4a', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexWrap: 'wrap' },
+  text: { flex: 1, color: '#e5e7eb', fontSize: 12 },
+  bold: { color: '#fff', fontWeight: '700' },
+  btn: { backgroundColor: '#d97706', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  btnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+});
 
 function MainTabs() {
   const { user } = useAuth();
@@ -104,6 +130,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <SubShopBanner />
         <RootNavigator />
         <StatusBar style="auto" />
       </AuthProvider>
