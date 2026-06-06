@@ -10,7 +10,7 @@ const BASE_URL = (() => {
     return 'http://localhost:3001/api/v1';
   }
   // Physical device → use Railway backend
-  return 'https://shopmaster-mobile-production.up.railway.app/api/v1';
+  return 'https://shopmaster-backend-production.up.railway.app/api/v1';
 })();
 
 // Origin only (no /api path) — used by auth screens that call /api/auth/...
