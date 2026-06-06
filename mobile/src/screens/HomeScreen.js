@@ -18,7 +18,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Welcome back, {user?.email}</Text>
+          <Text style={styles.greeting}>Welcome back, {user?.name ?? user?.email}</Text>
           <Text style={styles.heading}>ShopMaster Dashboard</Text>
         </View>
         <TouchableOpacity onPress={logout} style={styles.logoutBtn}>

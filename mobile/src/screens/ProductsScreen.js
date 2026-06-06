@@ -10,8 +10,10 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as api from '../services/api';
 import { formatCurrency } from 'shopmaster-shared';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 export default function ProductsScreen() {
   const [products, setProducts] = useState([]);
@@ -20,6 +22,7 @@ export default function ProductsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState({ name: '', sku: '', barcode: '', price: '', stock: '', category: '' });
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -33,9 +36,7 @@ export default function ProductsScreen() {
     }
   }, [search]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const openCreate = () => {
     setEditProduct(null);
@@ -83,14 +84,15 @@ export default function ProductsScreen() {
     Alert.alert('Delete product', `Delete "${product.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await api.deleteProduct(product.id);
-          fetchProducts();
-        },
+        text: 'Delete', style: 'destructive',
+        onPress: async () => { await api.deleteProduct(product.id); fetchProducts(); },
       },
     ]);
+  };
+
+  const handleBarcodeScan = (data) => {
+    setForm(f => ({ ...f, barcode: data }));
+    setScannerVisible(false);
   };
 
   return (
@@ -133,11 +135,13 @@ export default function ProductsScreen() {
         />
       )}
 
+      {/* Product form modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>{editProduct ? 'Edit Product' : 'New Product'}</Text>
-            {['name', 'sku', 'barcode', 'price', 'stock', 'category'].map(field => (
+
+            {['name', 'sku', 'price', 'stock', 'category'].map(field => (
               <TextInput
                 key={field}
                 style={styles.input}
@@ -147,6 +151,23 @@ export default function ProductsScreen() {
                 keyboardType={['price', 'stock'].includes(field) ? 'numeric' : 'default'}
               />
             ))}
+
+            {/* Barcode field with scan button */}
+            <View style={styles.barcodeRow}>
+              <TextInput
+                style={[styles.input, styles.barcodeInput]}
+                placeholder="Barcode (optional)"
+                value={form.barcode}
+                onChangeText={v => setForm(f => ({ ...f, barcode: v }))}
+              />
+              <TouchableOpacity
+                style={styles.scanBtn}
+                onPress={() => setScannerVisible(true)}
+              >
+                <Ionicons name="barcode-outline" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
                 <Text>Cancel</Text>
@@ -157,6 +178,14 @@ export default function ProductsScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Barcode scanner modal */}
+      <Modal visible={scannerVisible} animationType="slide">
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setScannerVisible(false)}
+        />
       </Modal>
     </View>
   );
@@ -189,6 +218,12 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10, fontSize: 14,
+  },
+  barcodeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  barcodeInput: { flex: 1, marginBottom: 0 },
+  scanBtn: {
+    backgroundColor: '#1a2e4a', borderRadius: 8,
+    paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center',
   },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 4 },
   cancelBtn: { paddingVertical: 10, paddingHorizontal: 16 },
