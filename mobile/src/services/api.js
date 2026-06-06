@@ -9,8 +9,8 @@ const BASE_URL = (() => {
   if (typeof window !== 'undefined' && window.location) {
     return 'http://localhost:3001/api/v1';
   }
-  // Android emulator → use 10.0.2.2
-  return 'http://10.0.2.2:3001/api/v1';
+  // Physical device / LAN → use PC IP
+  return 'http://10.67.115.93:3001/api/v1';
 })();
 
 // Origin only (no /api path) — used by auth screens that call /api/auth/...
