@@ -61,6 +61,12 @@ api.interceptors.response.use(
 export const register = (shopName, email, password) =>
   api.post('/auth/register', { shopName, email, password }).then(r => r.data);
 
+export const forgotPassword = email =>
+  api.post('/auth/forgot', { email }).then(r => r.data);
+
+export const resetPassword = (email, shopId, otp, newPassword) =>
+  api.post('/auth/reset-password', { email, shopId, otp, newPassword }).then(r => r.data);
+
 export const login = (email, password, tenantId) =>
   api.post('/auth/login', { email, password, tenantId }).then(r => r.data);
 

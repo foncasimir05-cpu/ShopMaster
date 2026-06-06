@@ -18,6 +18,7 @@ import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UserManagementScreen from './src/screens/settings/UserManagementScreen';
 import SubShopsScreen from './src/screens/settings/SubShopsScreen';
+import ForgotScreen from './src/screens/auth/ForgotScreen';
 
 const Stack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
@@ -119,6 +120,7 @@ function RootNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="RegisterShop" component={RegisterShopScreen} />
+            <Stack.Screen name="Forgot" component={ForgotScreen} />
           </>
         )}
       </Stack.Navigator>

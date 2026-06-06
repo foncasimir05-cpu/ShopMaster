@@ -111,6 +111,14 @@ function createTables() {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS shop_settings (
       tenant_id       TEXT PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
       name            TEXT NOT NULL DEFAULT '',

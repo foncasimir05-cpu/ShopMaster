@@ -92,6 +92,10 @@ export default function LoginScreen({ navigation }) {
         <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('RegisterShop')}>
           <Text style={styles.linkText}>No shop yet? <Text style={styles.linkBold}>Create one →</Text></Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Forgot')}>
+          <Text style={styles.linkText}>Forgot password or Shop ID? <Text style={styles.linkBold}>Recover account →</Text></Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
