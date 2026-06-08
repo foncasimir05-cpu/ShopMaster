@@ -80,6 +80,7 @@ export const getMe = () => api.get('/auth/me').then(r => r.data);
 
 // Products
 export const getProducts = params => api.get('/products', { params }).then(r => r.data);
+export const getLowStockProducts = () => api.get('/products/low-stock').then(r => r.data);
 export const getProduct = id => api.get(`/products/${id}`).then(r => r.data);
 export const createProduct = data => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data).then(r => r.data);
@@ -110,6 +111,11 @@ export const upgradeToPremium = () => api.post('/settings/upgrade').then(r => r.
 export const getSubShops = () => api.get('/sub-shops').then(r => r.data);
 export const createSubShop = data => api.post('/sub-shops', data).then(r => r.data);
 export const switchToSubShopApi = id => api.post(`/sub-shops/${id}/switch`).then(r => r.data);
+
+// Day Close / Reconciliation
+export const getDayCloseSummary = date => api.get('/day-close/summary', { params: { date } }).then(r => r.data);
+export const saveDayClosure = data => api.post('/day-close', data).then(r => r.data);
+export const getDayCloseHistory = () => api.get('/day-close/history').then(r => r.data);
 
 // Staff / User management
 export const getStaff = () => api.get('/users').then(r => r.data);

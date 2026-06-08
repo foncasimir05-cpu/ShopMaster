@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as api from '../services/api';
 import { formatCurrency } from 'shopmaster-shared';
 import BarcodeScanner from '../components/BarcodeScanner';
+import { useStockAlert } from '../context/StockAlertContext';
 
 const CAN_SCAN = Platform.OS !== 'web';
 
@@ -24,8 +25,9 @@ export default function ProductsScreen() {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', sku: '', barcode: '', price: '', stock: '', category: '' });
+  const [form, setForm] = useState({ name: '', sku: '', barcode: '', price: '', stock: '', category: '', min_stock: '' });
   const [scannerVisible, setScannerVisible] = useState(false);
+  const { refresh: refreshAlerts } = useStockAlert();
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -43,7 +45,7 @@ export default function ProductsScreen() {
 
   const openCreate = () => {
     setEditProduct(null);
-    setForm({ name: '', sku: '', barcode: '', price: '', stock: '', category: '' });
+    setForm({ name: '', sku: '', barcode: '', price: '', stock: '', category: '', min_stock: '' });
     setModalVisible(true);
   };
 
@@ -56,6 +58,7 @@ export default function ProductsScreen() {
       price: String(product.price),
       stock: String(product.stock),
       category: product.category ?? '',
+      min_stock: product.min_stock ? String(product.min_stock) : '',
     });
     setModalVisible(true);
   };
@@ -70,6 +73,7 @@ export default function ProductsScreen() {
         price: parseFloat(form.price) || 0,
         stock: parseInt(form.stock, 10) || 0,
         category: form.category || undefined,
+        min_stock: parseInt(form.min_stock, 10) || 0,
       };
       if (editProduct) {
         await api.updateProduct(editProduct.id, payload);
@@ -78,6 +82,7 @@ export default function ProductsScreen() {
       }
       setModalVisible(false);
       fetchProducts();
+      refreshAlerts();
     } catch (err) {
       Alert.alert('Save failed', err.response?.data?.error ?? err.message);
     }
@@ -120,10 +125,15 @@ export default function ProductsScreen() {
           data={products}
           keyExtractor={p => p.id}
           renderItem={({ item }) => (
-            <View style={styles.row}>
+            <View style={[styles.row, item.min_stock > 0 && item.stock <= item.min_stock && styles.rowLowStock]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowName}>{item.name}</Text>
-                <Text style={styles.rowSub}>{item.sku ?? '—'} · Stock: {item.stock}</Text>
+                <Text style={styles.rowSub}>
+                  {item.sku ?? '—'} · Stock: {item.stock}
+                  {item.min_stock > 0 && item.stock <= item.min_stock
+                    ? <Text style={styles.lowStockLabel}> ⚠ Low</Text>
+                    : null}
+                </Text>
               </View>
               <Text style={styles.rowPrice}>{formatCurrency(item.price)}</Text>
               <TouchableOpacity onPress={() => openEdit(item)} style={styles.iconBtn}>
@@ -144,14 +154,14 @@ export default function ProductsScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>{editProduct ? 'Edit Product' : 'New Product'}</Text>
 
-            {['name', 'sku', 'price', 'stock', 'category'].map(field => (
+            {['name', 'sku', 'price', 'stock', 'category', 'min_stock'].map(field => (
               <TextInput
                 key={field}
                 style={styles.input}
-                placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                placeholder={field === 'min_stock' ? 'Low stock alert at (0 = off)' : field.charAt(0).toUpperCase() + field.slice(1)}
                 value={form[field]}
                 onChangeText={v => setForm(f => ({ ...f, [field]: v }))}
-                keyboardType={['price', 'stock'].includes(field) ? 'numeric' : 'default'}
+                keyboardType={['price', 'stock', 'min_stock'].includes(field) ? 'numeric' : 'default'}
               />
             ))}
 
@@ -217,8 +227,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 8, padding: 12, marginBottom: 8,
   },
+  rowLowStock: { borderLeftWidth: 3, borderLeftColor: '#f59e0b' },
   rowName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   rowSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  lowStockLabel: { color: '#d97706', fontWeight: '700' },
   rowPrice: { fontSize: 15, fontWeight: '700', color: '#1a56db', marginRight: 8 },
   iconBtn: { padding: 6 },
   empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },

@@ -34,6 +34,17 @@ router.get('/', (req, res, next) => {
   }
 });
 
+// GET /api/v1/products/low-stock — must be before /:id
+router.get('/low-stock', (req, res, next) => {
+  try {
+    const db = getDb();
+    res.json(dbAll(db,
+      'SELECT * FROM products WHERE tenant_id = ? AND min_stock > 0 AND stock <= min_stock ORDER BY stock ASC',
+      [req.shopId]
+    ));
+  } catch (err) { next(err); }
+});
+
 // GET /api/v1/products/:id
 router.get('/:id', (req, res, next) => {
   try {
@@ -52,15 +63,15 @@ router.get('/:id', (req, res, next) => {
 // POST /api/v1/products
 router.post('/', (req, res, next) => {
   try {
-    const { name, sku, barcode, price, cost, stock, category } = req.body;
+    const { name, sku, barcode, price, cost, stock, category, min_stock } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     const db = getDb();
     const id = uuidv4();
     dbRun(db,
-      `INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, req.shopId, name, sku, barcode, price ?? 0, cost ?? 0, stock ?? 0, category]
+      `INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category, min_stock)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, req.shopId, name, sku, barcode, price ?? 0, cost ?? 0, stock ?? 0, category, min_stock ?? 0]
     );
 
     res.status(201).json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [id]));
@@ -79,13 +90,13 @@ router.put('/:id', (req, res, next) => {
     );
     if (!existing) return res.status(404).json({ error: 'Product not found' });
 
-    const { name, sku, barcode, price, cost, stock, category } = req.body;
+    const { name, sku, barcode, price, cost, stock, category, min_stock } = req.body;
     dbRun(db,
       `UPDATE products SET name=COALESCE(?,name), sku=COALESCE(?,sku), barcode=COALESCE(?,barcode),
        price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock),
-       category=COALESCE(?,category), updated_at=datetime('now')
+       category=COALESCE(?,category), min_stock=COALESCE(?,min_stock), updated_at=datetime('now')
        WHERE id = ? AND tenant_id = ?`,
-      [name, sku, barcode, price, cost, stock, category, req.params.id, req.shopId]
+      [name, sku, barcode, price, cost, stock, category, min_stock ?? null, req.params.id, req.shopId]
     );
 
     res.json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [req.params.id]));

@@ -111,6 +111,20 @@ function createTables() {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS day_closures (
+      id           TEXT PRIMARY KEY,
+      tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      date         TEXT NOT NULL,
+      total_sales  INTEGER NOT NULL DEFAULT 0,
+      total_revenue REAL NOT NULL DEFAULT 0,
+      cash_expected REAL NOT NULL DEFAULT 0,
+      actual_cash  REAL NOT NULL DEFAULT 0,
+      difference   REAL NOT NULL DEFAULT 0,
+      notes        TEXT,
+      closed_by    TEXT NOT NULL REFERENCES users(id),
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -142,6 +156,7 @@ function createTables() {
   try { db.run("ALTER TABLE tenants ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0"); } catch {}
   try { db.run("ALTER TABLE users ADD COLUMN security_question TEXT"); } catch {}
   try { db.run("ALTER TABLE users ADD COLUMN security_answer TEXT"); } catch {}
+  try { db.run("ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0"); } catch {}
 }
 
 module.exports = { initDb, getDb };

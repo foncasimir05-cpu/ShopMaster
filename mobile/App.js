@@ -8,9 +8,12 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { StockAlertProvider, useStockAlert } from './src/context/StockAlertContext';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterShopScreen from './src/screens/auth/RegisterShopScreen';
+import ForgotScreen from './src/screens/auth/ForgotScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import CloseOfDayScreen from './src/screens/CloseOfDayScreen';
 import ProductsScreen from './src/screens/ProductsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import POSScreen from './src/screens/pos/POSScreen';
@@ -18,9 +21,9 @@ import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UserManagementScreen from './src/screens/settings/UserManagementScreen';
 import SubShopsScreen from './src/screens/settings/SubShopsScreen';
-import ForgotScreen from './src/screens/auth/ForgotScreen';
 
 const Stack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -32,6 +35,15 @@ const TAB_ICONS = {
   Inventory:    { focused: 'layers',   blur: 'layers-outline' },
   SettingsTab:  { focused: 'settings', blur: 'settings-outline' },
 };
+
+function HomeNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+      <HomeStack.Screen name="CloseOfDay" component={CloseOfDayScreen} />
+    </HomeStack.Navigator>
+  );
+}
 
 function SettingsNavigator() {
   return (
@@ -69,6 +81,7 @@ const bannerStyles = StyleSheet.create({
 
 function MainTabs() {
   const { user } = useAuth();
+  const { count: lowStockCount } = useStockAlert();
   const role = user?.role;
   const isCashier = role === 'cashier';
 
@@ -88,8 +101,12 @@ function MainTabs() {
         <Tab.Screen name="POS" component={POSScreen} />
       ) : (
         <>
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Products" component={ProductsScreen} />
+          <Tab.Screen name="Home" component={HomeNavigator} />
+          <Tab.Screen
+            name="Products"
+            component={ProductsScreen}
+            options={{ tabBarBadge: lowStockCount > 0 ? lowStockCount : undefined }}
+          />
           <Tab.Screen name="POS" component={POSScreen} />
           <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: 'Sales' }} />
           <Tab.Screen name="Inventory" component={InventoryScreen} />
@@ -132,9 +149,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <SubShopBanner />
-        <RootNavigator />
-        <StatusBar style="auto" />
+        <StockAlertProvider>
+          <SubShopBanner />
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </StockAlertProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
