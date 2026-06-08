@@ -154,9 +154,25 @@ function createTables() {
   try { db.run("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
   try { db.run("ALTER TABLE tenants ADD COLUMN parent_tenant_id TEXT"); } catch {}
   try { db.run("ALTER TABLE tenants ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_plan TEXT"); } catch {}
+  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_expires_at TEXT"); } catch {}
+  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'free'"); } catch {}
   try { db.run("ALTER TABLE users ADD COLUMN security_question TEXT"); } catch {}
   try { db.run("ALTER TABLE users ADD COLUMN security_answer TEXT"); } catch {}
   try { db.run("ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0"); } catch {}
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id                TEXT PRIMARY KEY,
+      tenant_id         TEXT NOT NULL,
+      campay_reference  TEXT,
+      external_reference TEXT,
+      amount            INTEGER NOT NULL,
+      plan              TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'pending',
+      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 }
 
 module.exports = { initDb, getDb };

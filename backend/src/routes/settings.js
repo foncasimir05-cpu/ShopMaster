@@ -85,10 +85,21 @@ settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), (req, res, nex
 settingsRouter.get('/premium-status', (req, res, next) => {
   try {
     const db = getDb();
-    const tenant = dbGet(db, 'SELECT is_premium, parent_tenant_id FROM tenants WHERE id = ?', [req.shopId]);
+    const tenant = dbGet(db,
+      'SELECT is_premium, parent_tenant_id, subscription_plan, subscription_expires_at, subscription_status FROM tenants WHERE id = ?',
+      [req.shopId]
+    );
+    const isPremium = Boolean(tenant?.is_premium);
+    // Expire if past the expiry date
+    const expired = isPremium && tenant?.subscription_expires_at
+      ? new Date(tenant.subscription_expires_at) < new Date()
+      : false;
     res.json({
-      isPremium: Boolean(tenant?.is_premium),
+      isPremium: isPremium && !expired,
       isSubShop: Boolean(tenant?.parent_tenant_id),
+      subscriptionPlan: tenant?.subscription_plan ?? null,
+      subscriptionExpiresAt: tenant?.subscription_expires_at ?? null,
+      subscriptionStatus: expired ? 'expired' : (tenant?.subscription_status ?? 'free'),
     });
   } catch (err) { next(err); }
 });

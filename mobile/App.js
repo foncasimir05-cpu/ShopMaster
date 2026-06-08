@@ -21,6 +21,7 @@ import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UserManagementScreen from './src/screens/settings/UserManagementScreen';
 import SubShopsScreen from './src/screens/settings/SubShopsScreen';
+import PremiumScreen from './src/screens/settings/PremiumScreen';
 
 const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -51,6 +52,7 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="Settings" component={SettingsScreen} />
       <SettingsStack.Screen name="UserManagement" component={UserManagementScreen} />
       <SettingsStack.Screen name="SubShops" component={SubShopsScreen} />
+      <SettingsStack.Screen name="Premium" component={PremiumScreen} />
     </SettingsStack.Navigator>
   );
 }

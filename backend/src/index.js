@@ -10,6 +10,7 @@ const inventoryRoutes = require('./routes/inventory');
 const { settingsRouter, usersRouter } = require('./routes/settings');
 const subShopsRoutes = require('./routes/subShops');
 const dayCloseRoutes = require('./routes/dayClose');
+const premiumRoutes = require('./routes/premium');
 const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
@@ -30,6 +31,8 @@ app.use('/api/v1/inventory', authenticateToken, inventoryRoutes);
 app.use('/api/v1/settings', authenticateToken, settingsRouter);
 app.use('/api/v1/sub-shops', authenticateToken, subShopsRoutes);
 app.use('/api/v1/day-close', authenticateToken, dayCloseRoutes);
+app.use('/api/v1/premium/webhook', premiumRoutes); // webhook has no auth
+app.use('/api/v1/premium', authenticateToken, premiumRoutes);
 app.use('/api/v1/users', authenticateToken, usersRouter);
 
 // Global error handler

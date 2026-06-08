@@ -112,6 +112,12 @@ export const getSubShops = () => api.get('/sub-shops').then(r => r.data);
 export const createSubShop = data => api.post('/sub-shops', data).then(r => r.data);
 export const switchToSubShopApi = id => api.post(`/sub-shops/${id}/switch`).then(r => r.data);
 
+// Premium / Subscriptions
+export const initiatePremiumPayment = (plan, phone) =>
+  api.post('/premium/initiate', { plan, phone }).then(r => r.data);
+export const checkPremiumPaymentStatus = reference =>
+  api.get(`/premium/status/${reference}`).then(r => r.data);
+
 // Day Close / Reconciliation
 export const getDayCloseSummary = date => api.get('/day-close/summary', { params: { date } }).then(r => r.data);
 export const saveDayClosure = data => api.post('/day-close', data).then(r => r.data);

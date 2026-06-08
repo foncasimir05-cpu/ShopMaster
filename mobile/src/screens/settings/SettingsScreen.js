@@ -6,7 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getSettings, updateSettings, getPremiumStatus, upgradeToPremium } from '../../services/api';
+import { getSettings, updateSettings, getPremiumStatus } from '../../services/api';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -17,7 +17,7 @@ export default function SettingsScreen() {
   const [saved, setSaved] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isSubShop, setIsSubShop] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState(null);
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -43,6 +43,7 @@ export default function SettingsScreen() {
         setReceiptFooter(d.receipt_footer ?? '');
         setIsPremium(Boolean(p.isPremium));
         setIsSubShop(Boolean(p.isSubShop));
+        setSubscriptionExpiresAt(p.subscriptionExpiresAt ?? null);
       })
       .catch(() => setError('Failed to load settings'))
       .finally(() => setLoading(false));
@@ -129,13 +130,26 @@ export default function SettingsScreen() {
 
       {user?.role === 'admin' && !isSubShop && (
         isPremium ? (
-          <TouchableOpacity style={styles.branchesBtn} onPress={() => navigation.navigate('SubShops')}>
-            <View style={styles.branchesBtnLeft}>
-              <Ionicons name="storefront-outline" size={20} color="#1a2e4a" />
-              <Text style={styles.branchesBtnText}>Manage Branches</Text>
+          <>
+            <View style={styles.premiumActiveCard}>
+              <View style={styles.premiumHeader}>
+                <Ionicons name="star" size={18} color="#d97706" />
+                <Text style={styles.premiumActiveTitle}>Premium Active</Text>
+              </View>
+              {subscriptionExpiresAt && (
+                <Text style={styles.premiumExpiry}>
+                  Renews {new Date(subscriptionExpiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                </Text>
+              )}
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#1a2e4a" />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.branchesBtn} onPress={() => navigation.navigate('SubShops')}>
+              <View style={styles.branchesBtnLeft}>
+                <Ionicons name="storefront-outline" size={20} color="#1a2e4a" />
+                <Text style={styles.branchesBtnText}>Manage Branches</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#1a2e4a" />
+            </TouchableOpacity>
+          </>
         ) : (
           <View style={styles.premiumCard}>
             <View style={styles.premiumHeader}>
@@ -145,22 +159,16 @@ export default function SettingsScreen() {
             <Text style={styles.premiumDesc}>
               Manage multiple shop locations from one account. Each branch gets its own login, staff, products, and sales data.
             </Text>
+            <View style={styles.premiumPricing}>
+              <Text style={styles.premiumPrice}>9,000 XAF<Text style={styles.premiumPricePer}>/month</Text></Text>
+              <Text style={styles.premiumPriceDivider}>·</Text>
+              <Text style={styles.premiumPrice}>108,000 XAF<Text style={styles.premiumPricePer}>/year</Text></Text>
+            </View>
             <TouchableOpacity
-              style={[styles.upgradeBtn, upgrading && styles.upgradeBtnDisabled]}
-              onPress={async () => {
-                setUpgrading(true);
-                try {
-                  await upgradeToPremium();
-                  setIsPremium(true);
-                } catch {
-                  Alert.alert('Error', 'Could not activate premium. Please try again.');
-                } finally {
-                  setUpgrading(false);
-                }
-              }}
-              disabled={upgrading}
+              style={styles.upgradeBtn}
+              onPress={() => navigation.navigate('Premium')}
             >
-              <Text style={styles.upgradeBtnText}>{upgrading ? 'Activating…' : 'Activate Premium'}</Text>
+              <Text style={styles.upgradeBtnText}>Activate Premium →</Text>
             </TouchableOpacity>
           </View>
         )
@@ -247,11 +255,17 @@ const styles = StyleSheet.create({
   branchesBtnLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   branchesBtnText: { color: '#1a2e4a', fontWeight: '700', fontSize: 15 },
   premiumCard: { backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 12, padding: 16, marginBottom: 12, gap: 10 },
+  premiumActiveCard: { backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fde68a' },
   premiumHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   premiumTitle: { fontSize: 15, fontWeight: '800', color: '#92400e' },
+  premiumActiveTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
+  premiumExpiry: { fontSize: 12, color: '#b45309', marginTop: 4 },
   premiumDesc: { fontSize: 13, color: '#78350f', lineHeight: 19 },
+  premiumPricing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  premiumPrice: { fontSize: 14, fontWeight: '700', color: '#92400e' },
+  premiumPricePer: { fontWeight: '400', fontSize: 12 },
+  premiumPriceDivider: { color: '#b45309' },
   upgradeBtn: { backgroundColor: '#d97706', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  upgradeBtnDisabled: { opacity: 0.6 },
   upgradeBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   logoutBtn: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8, marginBottom: 4 },
   logoutBtnText: { color: '#dc2626', fontWeight: '700', fontSize: 15 },
