@@ -19,8 +19,6 @@ function signAccessToken(user) {
 
 function authenticateToken(req, res, next) {
   const header = req.headers.authorization;
-  console.log('Auth header received:', req.headers.authorization);
-  console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'set' : 'MISSING');
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing or invalid authorization header' });
   }

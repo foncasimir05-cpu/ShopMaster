@@ -242,6 +242,16 @@ async function createTables() {
         created_by  TEXT NOT NULL REFERENCES users(id),
         created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS sync_operations (
+        client_id  TEXT NOT NULL,
+        tenant_id  TEXT NOT NULL,
+        type       TEXT NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'processed',
+        error      TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (client_id, tenant_id)
+      );
     `);
   } finally {
     client.release();

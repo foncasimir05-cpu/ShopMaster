@@ -81,6 +81,7 @@ router.get('/summary', async (req, res, next) => {
         AND TO_CHAR(created_at, 'YYYY-MM-DD') >= ?
     `, [shopId, thirtyDaysAgo]);
 
+    res.set('Cache-Control', 'private, max-age=60');
     res.json({
       today: todayRow,
       week: weekRow,
@@ -134,6 +135,7 @@ router.get('/trend', async (req, res, next) => {
     const expMap = {};
     for (const r of expRows) expMap[r.date] = r.expenses;
 
+    res.set('Cache-Control', 'private, max-age=120');
     res.json(fillDays(revenueRows, days, cogsMap, expMap));
   } catch (err) { next(err); }
 });
@@ -164,6 +166,7 @@ router.get('/top-products', async (req, res, next) => {
       LIMIT ?
     `, [req.shopId, cutoffStr, limit]);
 
+    res.set('Cache-Control', 'private, max-age=300');
     res.json(rows.map(r => ({
       ...r,
       profit: Math.round((r.revenue - r.cogs) * 100) / 100,

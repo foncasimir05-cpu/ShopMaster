@@ -10,13 +10,23 @@ const router = express.Router();
 // GET /api/v1/suppliers
 router.get('/', async (req, res, next) => {
   try {
-    const { search } = req.query;
+    const { search, page = 1, limit = 50 } = req.query;
+    const safeLimit = Math.min(Number(limit), 200);
+    const offset = (Number(page) - 1) * safeLimit;
     const db = getDb();
-    let query = 'SELECT * FROM suppliers WHERE tenant_id = ?';
+
+    let where = 'WHERE tenant_id = ?';
     const params = [req.shopId];
-    if (search) { query += ' AND name LIKE ?'; params.push(`%${search}%`); }
-    query += ' ORDER BY name ASC';
-    res.json(await dbAll(db, query, params));
+    if (search) { where += ' AND name ILIKE ?'; params.push(`%${search}%`); }
+
+    const countRow = await dbGet(db, `SELECT COUNT(*) as total FROM suppliers ${where}`, params);
+    const rows = await dbAll(db,
+      `SELECT * FROM suppliers ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
+      [...params, safeLimit, offset]
+    );
+
+    res.set('X-Total-Count', String(countRow?.total ?? 0));
+    res.json(rows);
   } catch (err) { next(err); }
 });
 

@@ -11,22 +11,27 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
+    const safeLimit = Math.min(Number(limit), 200);
+    const offset = (Number(page) - 1) * safeLimit;
     const db = getDb();
-    const offset = (Number(page) - 1) * Number(limit);
 
-    let query = 'SELECT * FROM customers WHERE tenant_id = ?';
+    let where = 'WHERE tenant_id = ?';
     const params = [req.shopId];
 
     if (search) {
-      query += ' AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)';
+      where += ' AND (name ILIKE ? OR phone ILIKE ? OR email ILIKE ?)';
       const like = `%${search}%`;
       params.push(like, like, like);
     }
 
-    query += ' ORDER BY name ASC LIMIT ? OFFSET ?';
-    params.push(Number(limit), offset);
+    const countRow = await dbGet(db, `SELECT COUNT(*) as total FROM customers ${where}`, params);
+    const rows = await dbAll(db,
+      `SELECT * FROM customers ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
+      [...params, safeLimit, offset]
+    );
 
-    res.json(await dbAll(db, query, params));
+    res.set('X-Total-Count', String(countRow?.total ?? 0));
+    res.json(rows);
   } catch (err) { next(err); }
 });
 

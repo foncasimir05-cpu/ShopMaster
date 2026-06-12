@@ -10,27 +10,37 @@ const router = express.Router();
 // GET /api/v1/products
 router.get('/', async (req, res, next) => {
   try {
-    const { search, category, page = 1, limit = 50 } = req.query;
+    const { search, category, page = 1, limit = 50, slim } = req.query;
+    const safeLimit = Math.min(Number(limit), 200);
+    const offset = (Number(page) - 1) * safeLimit;
     const db = getDb();
-    const offset = (Number(page) - 1) * Number(limit);
 
-    let query = 'SELECT * FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)';
+    // slim=true returns only the fields the mobile POS needs for browsing
+    const cols = slim === 'true'
+      ? 'id, name, sku, barcode, price, cost, stock, min_stock, category, has_variants'
+      : '*';
+
+    let where = 'WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)';
     const params = [req.shopId];
 
     if (search) {
-      query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)';
+      where += ' AND (name ILIKE ? OR sku ILIKE ? OR barcode ILIKE ?)';
       const like = `%${search}%`;
       params.push(like, like, like);
     }
     if (category) {
-      query += ' AND category = ?';
+      where += ' AND category = ?';
       params.push(category);
     }
 
-    query += ' ORDER BY name ASC LIMIT ? OFFSET ?';
-    params.push(Number(limit), offset);
+    const countRow = await dbGet(db, `SELECT COUNT(*) as total FROM products ${where}`, params);
+    const rows = await dbAll(db,
+      `SELECT ${cols} FROM products ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
+      [...params, safeLimit, offset]
+    );
 
-    res.json(await dbAll(db, query, params));
+    res.set('X-Total-Count', String(countRow?.total ?? 0));
+    res.json(rows);
   } catch (err) {
     next(err);
   }

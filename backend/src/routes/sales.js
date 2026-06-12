@@ -4,6 +4,7 @@ const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../config/dbHelpers');
 const { generateInvoicePdf } = require('../services/pdf');
 const { sendReceiptEmail } = require('../services/mailer');
+const { publish } = require('../services/eventBus');
 const validate = require('../middleware/validate');
 const v = require('../middleware/validators');
 
@@ -242,9 +243,24 @@ router.post('/', [...v.createSale, validate], async (req, res, next) => {
     });
 
     res.status(201).json(result);
+
+    // After responding, check if any sold products dropped below their min_stock threshold
+    // and push an SSE low_stock event to connected clients for this tenant.
+    setImmediate(async () => {
+      try {
+        const db = getDb();
+        const soldIds = result.items.map(i => i.product_id).filter(Boolean);
+        for (const pid of soldIds) {
+          const p = await dbGet(db,
+            'SELECT id, name, stock, min_stock FROM products WHERE id = ? AND min_stock > 0 AND stock <= min_stock',
+            [pid]
+          );
+          if (p) publish(req.shopId, 'low_stock', { productId: p.id, name: p.name, stock: p.stock, minStock: p.min_stock });
+        }
+      } catch {}
+    });
   } catch (err) {
-    console.error('Sale insert error:', err.message);
-    console.error('Sale data:', { shopId: req.shopId, cashierId: req.user?.id, items });
+    console.error(`[${req.id}] Sale error:`, err.message);
     next(err);
   }
 });

@@ -1,10 +1,12 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { initDb, getDb } = require('./config/database');
+const requestId = require('./middleware/requestId');
 
 const newAuthRoutes = require('./auth/authRoutes');
 const productRoutes = require('./routes/products');
@@ -20,10 +22,18 @@ const suppliersRoutes = require('./routes/suppliers');
 const purchaseOrdersRoutes = require('./routes/purchaseOrders');
 const promotionsRoutes = require('./routes/promotions');
 const { router: expensesRoutes } = require('./routes/expenses');
+const eventsRoutes = require('./routes/events');
+const syncRoutes = require('./services/sync');
 const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Correlation ID — must be first so all middleware + logs can read req.id
+app.use(requestId);
+
+// Gzip all responses — biggest mobile bandwidth win
+app.use(compression());
 
 // Request logging — 'combined' in prod (Railway captures stdout), 'dev' locally
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -66,11 +76,21 @@ app.use('/api/v1/suppliers', authenticateToken, suppliersRoutes);
 app.use('/api/v1/purchase-orders', authenticateToken, purchaseOrdersRoutes);
 app.use('/api/v1/promotions', authenticateToken, promotionsRoutes);
 app.use('/api/v1/expenses', authenticateToken, expensesRoutes);
+app.use('/api/v1/events', authenticateToken, eventsRoutes);
+app.use('/api/v1/sync', authenticateToken, syncRoutes);
 
-// Global error handler
-app.use((err, _req, res, _next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+// Global error handler — structured response with correlation ID
+app.use((err, req, res, _next) => {
+  const status = err.status || err.statusCode || 500;
+  const codeMap = { 400: 'BAD_REQUEST', 401: 'UNAUTHORIZED', 403: 'FORBIDDEN', 404: 'NOT_FOUND', 409: 'CONFLICT', 422: 'UNPROCESSABLE', 429: 'RATE_LIMITED' };
+  const code = err.code || codeMap[status] || 'INTERNAL_ERROR';
+  if (status >= 500) console.error(`[${req.id}]`, err.stack);
+  // `error` stays a string for backward-compat; `code` and `requestId` are new fields
+  res.status(status).json({
+    error: err.message || 'Internal server error',
+    code,
+    requestId: req.id,
+  });
 });
 
 // Graceful shutdown — close pg pool cleanly when Railway sends SIGTERM
