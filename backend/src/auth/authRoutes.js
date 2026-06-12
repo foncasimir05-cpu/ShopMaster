@@ -139,6 +139,32 @@ router.post('/refresh', async (req, res, next) => {
   }
 });
 
+// POST /api/auth/logout — invalidate a specific refresh token
+// No access token required: the refresh token itself proves session ownership.
+// The access token remains valid until its 8h TTL; that's an acceptable window.
+router.post('/logout', async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ error: 'refreshToken is required' });
+    const db = getDb();
+    await dbRun(db, 'DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/logout-all — invalidate every session for the authenticated user
+router.post('/logout-all', authenticateToken, async (req, res, next) => {
+  try {
+    const db = getDb();
+    await dbRun(db, 'DELETE FROM refresh_tokens WHERE user_id = ?', [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/auth/forgot
 router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
   try {

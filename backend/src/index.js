@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { initDb, getDb } = require('./config/database');
 
@@ -23,6 +24,9 @@ const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Request logging — 'combined' in prod (Railway captures stdout), 'dev' locally
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Security headers
 app.use(helmet());
