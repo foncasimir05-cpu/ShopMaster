@@ -1,8 +1,9 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { initDb } = require('./config/database');
+const { initDb, getDb } = require('./config/database');
 
 const newAuthRoutes = require('./auth/authRoutes');
 const productRoutes = require('./routes/products');
@@ -23,8 +24,17 @@ const { authenticateToken } = require('./middleware/authenticateToken');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
-app.use(express.json());
+// Security headers
+app.use(helmet());
+
+// CORS — restrict to allowed origins in production via ALLOWED_ORIGINS env var (comma-separated)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : '*';
+app.use(cors({ origin: allowedOrigins }));
+
+// Body size limit — prevents OOM from oversized payloads
+app.use(express.json({ limit: '1mb' }));
 
 // Rate limiting — tighter on auth, generous on everything else
 app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
@@ -57,6 +67,13 @@ app.use('/api/v1/expenses', authenticateToken, expensesRoutes);
 app.use((err, _req, res, _next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
+
+// Graceful shutdown — close pg pool cleanly when Railway sends SIGTERM
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, draining pg pool...');
+  try { await getDb().end(); } catch {}
+  process.exit(0);
 });
 
 initDb().then(() => {

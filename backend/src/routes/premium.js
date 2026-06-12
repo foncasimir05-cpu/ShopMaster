@@ -142,16 +142,31 @@ router.get('/status/:reference', requireRole('admin', 'owner'), async (req, res,
 });
 
 // POST /api/v1/premium/webhook  (Campay callback — no auth required)
+// We never trust the status in the request body. Instead we verify by calling
+// the Campay API directly, so a spoofed POST cannot fake a successful payment.
 router.post('/webhook', async (req, res) => {
   try {
-    const { reference, status } = req.body;
+    const { reference } = req.body;
     if (!reference) return res.status(400).json({ error: 'Missing reference' });
 
     const db = getDb();
     const payment = await dbGet(db, 'SELECT * FROM payments WHERE campay_reference = ?', [reference]);
     if (!payment || payment.status === 'successful') return res.json({ received: true });
 
-    if (status === 'SUCCESSFUL') {
+    // Verify status directly with Campay — ignore whatever status the caller sent
+    let campayStatus;
+    try {
+      const token = await getCampayToken();
+      const checkRes = await fetch(`${CAMPAY_BASE}/api/transaction/${reference}/`, {
+        headers: { Authorization: `Token ${token}` },
+      });
+      if (!checkRes.ok) return res.json({ received: true });
+      campayStatus = (await checkRes.json()).status;
+    } catch {
+      return res.json({ received: true }); // can't verify — ignore, Campay will retry
+    }
+
+    if (campayStatus === 'SUCCESSFUL') {
       const plan = PLANS[payment.plan];
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + plan.months);
@@ -161,6 +176,8 @@ router.post('/webhook', async (req, res) => {
         `UPDATE tenants SET is_premium = 1, subscription_plan = ?, subscription_expires_at = ?, subscription_status = 'active' WHERE id = ?`,
         [payment.plan, expiresAt.toISOString(), payment.tenant_id]
       );
+    } else if (campayStatus === 'FAILED') {
+      await dbRun(db, `UPDATE payments SET status = 'failed' WHERE campay_reference = ?`, [reference]);
     }
 
     res.json({ received: true });
