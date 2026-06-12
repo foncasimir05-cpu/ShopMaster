@@ -36,7 +36,6 @@ async function getCampayToken() {
 }
 
 // POST /api/v1/premium/initiate
-// Body: { plan: 'monthly'|'annual', phone: '6XXXXXXXX' }
 router.post('/initiate', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const { plan, phone } = req.body;
@@ -77,12 +76,11 @@ router.post('/initiate', requireRole('admin', 'owner'), async (req, res, next) =
     const collectData = await collectRes.json();
     const campayRef = collectData.reference;
 
-    dbRun(db,
+    await dbRun(db,
       `INSERT INTO payments (id, tenant_id, campay_reference, external_reference, amount, plan, status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
       [uuidv4(), req.shopId, campayRef, externalRef, amount, plan]
     );
-    db._save();
 
     res.json({ reference: campayRef, message: 'Check your phone and approve the payment request.' });
   } catch (err) {
@@ -95,20 +93,18 @@ router.post('/initiate', requireRole('admin', 'owner'), async (req, res, next) =
 router.get('/status/:reference', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const db = getDb();
-    const payment = dbGet(db,
+    const payment = await dbGet(db,
       'SELECT * FROM payments WHERE campay_reference = ? AND tenant_id = ?',
       [req.params.reference, req.shopId]
     );
     if (!payment) return res.status(404).json({ error: 'Payment not found.' });
 
-    // Already activated — return immediately
     if (payment.status === 'successful') {
-      const tenant = dbGet(db, 'SELECT subscription_expires_at FROM tenants WHERE id = ?', [req.shopId]);
+      const tenant = await dbGet(db, 'SELECT subscription_expires_at FROM tenants WHERE id = ?', [req.shopId]);
       return res.json({ status: 'successful', expiresAt: tenant?.subscription_expires_at });
     }
     if (payment.status === 'failed') return res.json({ status: 'failed' });
 
-    // Poll Campay
     const token = await getCampayToken();
     const checkRes = await fetch(`${CAMPAY_BASE}/api/transaction/${req.params.reference}/`, {
       headers: { Authorization: `Token ${token}` },
@@ -117,7 +113,7 @@ router.get('/status/:reference', requireRole('admin', 'owner'), async (req, res,
     if (!checkRes.ok) return res.status(502).json({ error: 'Could not check payment status.' });
 
     const checkData = await checkRes.json();
-    const campayStatus = checkData.status; // SUCCESSFUL | FAILED | PENDING
+    const campayStatus = checkData.status;
 
     if (campayStatus === 'SUCCESSFUL') {
       const plan = PLANS[payment.plan];
@@ -125,18 +121,16 @@ router.get('/status/:reference', requireRole('admin', 'owner'), async (req, res,
       expiresAt.setMonth(expiresAt.getMonth() + plan.months);
       const expiresAtStr = expiresAt.toISOString();
 
-      dbRun(db, `UPDATE payments SET status = 'successful' WHERE campay_reference = ?`, [req.params.reference]);
-      dbRun(db,
+      await dbRun(db, `UPDATE payments SET status = 'successful' WHERE campay_reference = ?`, [req.params.reference]);
+      await dbRun(db,
         `UPDATE tenants SET is_premium = 1, subscription_plan = ?, subscription_expires_at = ?, subscription_status = 'active' WHERE id = ?`,
         [payment.plan, expiresAtStr, req.shopId]
       );
-      db._save();
       return res.json({ status: 'successful', expiresAt: expiresAtStr });
     }
 
     if (campayStatus === 'FAILED') {
-      dbRun(db, `UPDATE payments SET status = 'failed' WHERE campay_reference = ?`, [req.params.reference]);
-      db._save();
+      await dbRun(db, `UPDATE payments SET status = 'failed' WHERE campay_reference = ?`, [req.params.reference]);
       return res.json({ status: 'failed' });
     }
 
@@ -154,7 +148,7 @@ router.post('/webhook', async (req, res) => {
     if (!reference) return res.status(400).json({ error: 'Missing reference' });
 
     const db = getDb();
-    const payment = dbGet(db, 'SELECT * FROM payments WHERE campay_reference = ?', [reference]);
+    const payment = await dbGet(db, 'SELECT * FROM payments WHERE campay_reference = ?', [reference]);
     if (!payment || payment.status === 'successful') return res.json({ received: true });
 
     if (status === 'SUCCESSFUL') {
@@ -162,12 +156,11 @@ router.post('/webhook', async (req, res) => {
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + plan.months);
 
-      dbRun(db, `UPDATE payments SET status = 'successful' WHERE campay_reference = ?`, [reference]);
-      dbRun(db,
+      await dbRun(db, `UPDATE payments SET status = 'successful' WHERE campay_reference = ?`, [reference]);
+      await dbRun(db,
         `UPDATE tenants SET is_premium = 1, subscription_plan = ?, subscription_expires_at = ?, subscription_status = 'active' WHERE id = ?`,
         [payment.plan, expiresAt.toISOString(), payment.tenant_id]
       );
-      db._save();
     }
 
     res.json({ received: true });

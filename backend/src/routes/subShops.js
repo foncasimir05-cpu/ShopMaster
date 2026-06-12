@@ -7,11 +7,11 @@ const { signAccessToken } = require('../middleware/authenticateToken');
 
 const router = express.Router();
 
-// GET /api/v1/sub-shops — list branches of current shop
-router.get('/', (req, res, next) => {
+// GET /api/v1/sub-shops
+router.get('/', async (req, res, next) => {
   try {
     const db = getDb();
-    const subShops = dbAll(db,
+    const subShops = await dbAll(db,
       `SELECT t.id, t.name, t.created_at,
               (SELECT COUNT(*) FROM users WHERE tenant_id = t.id AND is_active = 1) AS staff_count
        FROM tenants t WHERE t.parent_tenant_id = ?
@@ -22,11 +22,11 @@ router.get('/', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/v1/sub-shops — create a branch (premium only)
+// POST /api/v1/sub-shops
 router.post('/', async (req, res, next) => {
   try {
     const db = getDb();
-    const tenant = dbGet(db, 'SELECT is_premium FROM tenants WHERE id = ?', [req.shopId]);
+    const tenant = await dbGet(db, 'SELECT is_premium FROM tenants WHERE id = ?', [req.shopId]);
     if (!tenant) {
       return res.status(404).json({ error: 'Shop not found. Please log out and log in again.' });
     }
@@ -43,34 +43,34 @@ router.post('/', async (req, res, next) => {
     const tenantId = uuidv4();
     const userId = uuidv4();
     const hash = await bcrypt.hash(adminPassword, 12);
-    dbTransaction(db, () => {
-      dbRun(db,
+    await dbTransaction(db, async (client) => {
+      await dbRun(client,
         'INSERT INTO tenants (id, name, parent_tenant_id) VALUES (?, ?, ?)',
         [tenantId, branchName, req.shopId]
       );
-      dbRun(db,
+      await dbRun(client,
         'INSERT INTO users (id, tenant_id, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)',
         [userId, tenantId, adminName, adminEmail.trim().toLowerCase(), hash, 'admin']
       );
-      dbRun(db,
+      await dbRun(client,
         'INSERT INTO shop_settings (tenant_id, name) VALUES (?, ?)',
         [tenantId, branchName]
       );
     });
     res.status(201).json({ id: tenantId, name: branchName });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) {
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already in use' });
     }
     next(err);
   }
 });
 
-// POST /api/v1/sub-shops/:id/switch — get access token for a branch
-router.post('/:id/switch', (req, res, next) => {
+// POST /api/v1/sub-shops/:id/switch
+router.post('/:id/switch', async (req, res, next) => {
   try {
     const db = getDb();
-    const subShop = dbGet(db,
+    const subShop = await dbGet(db,
       'SELECT id, name FROM tenants WHERE id = ? AND parent_tenant_id = ?',
       [req.params.id, req.shopId]
     );

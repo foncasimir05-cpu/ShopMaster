@@ -8,20 +8,20 @@ const v = require('../middleware/validators');
 const router = express.Router();
 
 // GET /api/v1/promotions
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const db = getDb();
-    res.json(dbAll(db, 'SELECT * FROM promotions WHERE tenant_id = ? ORDER BY created_at DESC', [req.shopId]));
+    res.json(await dbAll(db, 'SELECT * FROM promotions WHERE tenant_id = ? ORDER BY created_at DESC', [req.shopId]));
   } catch (err) { next(err); }
 });
 
 // POST /api/v1/promotions/validate  — must be before /:id
-router.post('/validate', (req, res, next) => {
+router.post('/validate', async (req, res, next) => {
   try {
     const { code, subtotal } = req.body;
     if (!code) return res.status(400).json({ valid: false, error: 'code is required' });
     const db = getDb();
-    const promo = dbGet(db,
+    const promo = await dbGet(db,
       "SELECT * FROM promotions WHERE code = ? AND tenant_id = ? AND is_active = 1",
       [code.toUpperCase().trim(), req.shopId]
     );
@@ -44,7 +44,7 @@ router.post('/validate', (req, res, next) => {
 });
 
 // POST /api/v1/promotions
-router.post('/', [...v.createPromotion, validate], (req, res, next) => {
+router.post('/', [...v.createPromotion, validate], async (req, res, next) => {
   try {
     const { name, code, type, value, min_purchase, expires_at, is_active } = req.body;
     if (!name || !type || value == null) {
@@ -56,41 +56,41 @@ router.post('/', [...v.createPromotion, validate], (req, res, next) => {
     const db = getDb();
     const normalizedCode = code ? code.toUpperCase().trim() : null;
     if (normalizedCode) {
-      const exists = dbGet(db, 'SELECT id FROM promotions WHERE code = ? AND tenant_id = ?', [normalizedCode, req.shopId]);
+      const exists = await dbGet(db, 'SELECT id FROM promotions WHERE code = ? AND tenant_id = ?', [normalizedCode, req.shopId]);
       if (exists) return res.status(409).json({ error: 'Promo code already exists' });
     }
     const id = uuidv4();
-    dbRun(db,
+    await dbRun(db,
       'INSERT INTO promotions (id, tenant_id, name, code, type, value, min_purchase, expires_at, is_active) VALUES (?,?,?,?,?,?,?,?,?)',
       [id, req.shopId, name, normalizedCode, type, Number(value), Number(min_purchase ?? 0), expires_at ?? null, is_active !== false ? 1 : 0]
     );
-    res.status(201).json(dbGet(db, 'SELECT * FROM promotions WHERE id = ?', [id]));
+    res.status(201).json(await dbGet(db, 'SELECT * FROM promotions WHERE id = ?', [id]));
   } catch (err) { next(err); }
 });
 
 // PUT /api/v1/promotions/:id
-router.put('/:id', [...v.updatePromotion, validate], (req, res, next) => {
+router.put('/:id', [...v.updatePromotion, validate], async (req, res, next) => {
   try {
     const { name, code, type, value, min_purchase, expires_at, is_active } = req.body;
     const db = getDb();
-    const promo = dbGet(db, 'SELECT id FROM promotions WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const promo = await dbGet(db, 'SELECT id FROM promotions WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
     if (!promo) return res.status(404).json({ error: 'Promotion not found' });
     const normalizedCode = code ? code.toUpperCase().trim() : null;
-    dbRun(db,
+    await dbRun(db,
       'UPDATE promotions SET name=?, code=?, type=?, value=?, min_purchase=?, expires_at=?, is_active=? WHERE id=?',
       [name, normalizedCode, type, Number(value), Number(min_purchase ?? 0), expires_at ?? null, is_active ? 1 : 0, req.params.id]
     );
-    res.json(dbGet(db, 'SELECT * FROM promotions WHERE id = ?', [req.params.id]));
+    res.json(await dbGet(db, 'SELECT * FROM promotions WHERE id = ?', [req.params.id]));
   } catch (err) { next(err); }
 });
 
 // DELETE /api/v1/promotions/:id
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const promo = dbGet(db, 'SELECT id FROM promotions WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const promo = await dbGet(db, 'SELECT id FROM promotions WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
     if (!promo) return res.status(404).json({ error: 'Promotion not found' });
-    dbRun(db, 'DELETE FROM promotions WHERE id = ?', [req.params.id]);
+    await dbRun(db, 'DELETE FROM promotions WHERE id = ?', [req.params.id]);
     res.json({ message: 'Promotion deleted' });
   } catch (err) { next(err); }
 });

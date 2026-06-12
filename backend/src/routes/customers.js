@@ -8,7 +8,7 @@ const v = require('../middleware/validators');
 const router = express.Router();
 
 // GET /api/v1/customers
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
     const db = getDb();
@@ -26,21 +26,21 @@ router.get('/', (req, res, next) => {
     query += ' ORDER BY name ASC LIMIT ? OFFSET ?';
     params.push(Number(limit), offset);
 
-    res.json(dbAll(db, query, params));
+    res.json(await dbAll(db, query, params));
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/customers/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const customer = dbGet(db,
+    const customer = await dbGet(db,
       'SELECT * FROM customers WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const recentSales = dbAll(db, `
+    const recentSales = await dbAll(db, `
       SELECT id, total, payment_method, created_at, status
       FROM sales
       WHERE customer_id = ? AND tenant_id = ? AND status = 'completed'
@@ -52,40 +52,38 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/customers
-router.post('/', [...v.createCustomer, validate], (req, res, next) => {
+router.post('/', [...v.createCustomer, validate], async (req, res, next) => {
   try {
     const { name, phone, email } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     const db = getDb();
     const id = uuidv4();
-    dbRun(db,
+    await dbRun(db,
       'INSERT INTO customers (id, tenant_id, name, phone, email) VALUES (?,?,?,?,?)',
       [id, req.shopId, name, phone || null, email || null]
     );
-    db._save();
-    res.status(201).json(dbGet(db, 'SELECT * FROM customers WHERE id = ?', [id]));
+    res.status(201).json(await dbGet(db, 'SELECT * FROM customers WHERE id = ?', [id]));
   } catch (err) { next(err); }
 });
 
 // PUT /api/v1/customers/:id
-router.put('/:id', [...v.updateCustomer, validate], (req, res, next) => {
+router.put('/:id', [...v.updateCustomer, validate], async (req, res, next) => {
   try {
     const db = getDb();
-    const existing = dbGet(db,
+    const existing = await dbGet(db,
       'SELECT id FROM customers WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!existing) return res.status(404).json({ error: 'Customer not found' });
 
     const { name, phone, email } = req.body;
-    dbRun(db,
+    await dbRun(db,
       `UPDATE customers SET name=COALESCE(?,name), phone=COALESCE(?,phone), email=COALESCE(?,email),
-       updated_at=datetime('now') WHERE id = ? AND tenant_id = ?`,
+       updated_at=NOW() WHERE id = ? AND tenant_id = ?`,
       [name || null, phone || null, email || null, req.params.id, req.shopId]
     );
-    db._save();
-    res.json(dbGet(db, 'SELECT * FROM customers WHERE id = ?', [req.params.id]));
+    res.json(await dbGet(db, 'SELECT * FROM customers WHERE id = ?', [req.params.id]));
   } catch (err) { next(err); }
 });
 

@@ -5,8 +5,8 @@ const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/v1/inventory  — list products with stock info
-router.get('/', (req, res, next) => {
+// GET /api/v1/inventory
+router.get('/', async (req, res, next) => {
   try {
     const { lowStock } = req.query;
     const db = getDb();
@@ -19,14 +19,14 @@ router.get('/', (req, res, next) => {
     }
 
     query += ' ORDER BY stock ASC';
-    res.json(dbAll(db, query, params));
+    res.json(await dbAll(db, query, params));
   } catch (err) {
     next(err);
   }
 });
 
-// PATCH /api/v1/inventory/:productId/adjust  — manual stock adjustment (admin only)
-router.patch('/:productId/adjust', requireRole('admin'), (req, res, next) => {
+// PATCH /api/v1/inventory/:productId/adjust
+router.patch('/:productId/adjust', requireRole('admin'), async (req, res, next) => {
   try {
     const { delta, reason } = req.body;
     if (typeof delta !== 'number') {
@@ -34,15 +34,15 @@ router.patch('/:productId/adjust', requireRole('admin'), (req, res, next) => {
     }
 
     const db = getDb();
-    const product = dbGet(db,
+    const product = await dbGet(db,
       'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
       [req.params.productId, req.shopId]
     );
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const newStock = Math.max(0, product.stock + delta);
-    dbRun(db,
-      "UPDATE products SET stock = ?, updated_at = datetime('now') WHERE id = ?",
+    await dbRun(db,
+      'UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?',
       [newStock, req.params.productId]
     );
 

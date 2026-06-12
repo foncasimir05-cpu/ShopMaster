@@ -4,8 +4,8 @@ const { dbGet, dbAll } = require('../config/dbHelpers');
 
 const router = express.Router();
 
-function getCogsForPeriod(db, shopId, extraWhere, params) {
-  const row = dbGet(db,
+async function getCogsForPeriod(db, shopId, extraWhere, params) {
+  const row = await dbGet(db,
     `SELECT COALESCE(SUM(si.cost_price * si.quantity),0) as cogs
      FROM sale_items si JOIN sales s ON si.sale_id = s.id
      WHERE s.tenant_id=? ${extraWhere} AND s.status='completed'`,
@@ -14,8 +14,8 @@ function getCogsForPeriod(db, shopId, extraWhere, params) {
   return row?.cogs ?? 0;
 }
 
-function getExpensesForPeriod(db, shopId, extraWhere, params) {
-  const row = dbGet(db,
+async function getExpensesForPeriod(db, shopId, extraWhere, params) {
+  const row = await dbGet(db,
     `SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE tenant_id=? ${extraWhere}`,
     [shopId, ...params]
   );
@@ -23,7 +23,7 @@ function getExpensesForPeriod(db, shopId, extraWhere, params) {
 }
 
 // GET /api/v1/analytics/summary
-router.get('/summary', (req, res, next) => {
+router.get('/summary', async (req, res, next) => {
   try {
     const db = getDb();
     const { shopId } = req;
@@ -31,52 +31,55 @@ router.get('/summary', (req, res, next) => {
     const today = new Date().toISOString().split('T')[0];
     const monthStr = today.substring(0, 7);
     const weekStart = getMondayStr();
+    const thirtyDaysAgo = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
+    })();
 
-    const todayRow = dbGet(db, `
+    const todayRow = await dbGet(db, `
       SELECT COUNT(*) as sales_count, COALESCE(SUM(total),0) as revenue
-      FROM sales WHERE tenant_id=? AND date(created_at)=? AND status='completed'
+      FROM sales WHERE tenant_id=? AND TO_CHAR(created_at, 'YYYY-MM-DD')=? AND status='completed'
     `, [shopId, today]);
-    const todayCogs = getCogsForPeriod(db, shopId, 'AND date(s.created_at)=?', [today]);
-    const todayExp = getExpensesForPeriod(db, shopId, 'AND date=?', [today]);
+    const todayCogs = await getCogsForPeriod(db, shopId, "AND TO_CHAR(s.created_at, 'YYYY-MM-DD')=?", [today]);
+    const todayExp = await getExpensesForPeriod(db, shopId, 'AND date=?', [today]);
     todayRow.profit = Math.round((todayRow.revenue - todayCogs) * 100) / 100;
     todayRow.expenses = Math.round(todayExp * 100) / 100;
     todayRow.net_profit = Math.round((todayRow.profit - todayExp) * 100) / 100;
 
-    const weekRow = dbGet(db, `
+    const weekRow = await dbGet(db, `
       SELECT COUNT(*) as sales_count, COALESCE(SUM(total),0) as revenue
-      FROM sales WHERE tenant_id=? AND date(created_at)>=? AND status='completed'
+      FROM sales WHERE tenant_id=? AND TO_CHAR(created_at, 'YYYY-MM-DD')>=? AND status='completed'
     `, [shopId, weekStart]);
-    const weekCogs = getCogsForPeriod(db, shopId, 'AND date(s.created_at)>=?', [weekStart]);
-    const weekExp = getExpensesForPeriod(db, shopId, 'AND date>=?', [weekStart]);
+    const weekCogs = await getCogsForPeriod(db, shopId, "AND TO_CHAR(s.created_at, 'YYYY-MM-DD')>=?", [weekStart]);
+    const weekExp = await getExpensesForPeriod(db, shopId, 'AND date>=?', [weekStart]);
     weekRow.profit = Math.round((weekRow.revenue - weekCogs) * 100) / 100;
     weekRow.expenses = Math.round(weekExp * 100) / 100;
     weekRow.net_profit = Math.round((weekRow.profit - weekExp) * 100) / 100;
 
-    const monthRow = dbGet(db, `
+    const monthRow = await dbGet(db, `
       SELECT COUNT(*) as sales_count, COALESCE(SUM(total),0) as revenue
-      FROM sales WHERE tenant_id=? AND strftime('%Y-%m',created_at)=? AND status='completed'
+      FROM sales WHERE tenant_id=? AND TO_CHAR(created_at, 'YYYY-MM')=? AND status='completed'
     `, [shopId, monthStr]);
-    const monthCogs = getCogsForPeriod(db, shopId, "AND strftime('%Y-%m',s.created_at)=?", [monthStr]);
-    const monthExp = getExpensesForPeriod(db, shopId, "AND strftime('%Y-%m',date)=?", [monthStr]);
+    const monthCogs = await getCogsForPeriod(db, shopId, "AND TO_CHAR(s.created_at, 'YYYY-MM')=?", [monthStr]);
+    const monthExp = await getExpensesForPeriod(db, shopId, 'AND SUBSTRING(date, 1, 7)=?', [monthStr]);
     monthRow.profit = Math.round((monthRow.revenue - monthCogs) * 100) / 100;
     monthRow.expenses = Math.round(monthExp * 100) / 100;
     monthRow.net_profit = Math.round((monthRow.profit - monthExp) * 100) / 100;
 
-    const allTimeRow = dbGet(db, `
+    const allTimeRow = await dbGet(db, `
       SELECT COUNT(*) as sales_count, COALESCE(SUM(total),0) as revenue
       FROM sales WHERE tenant_id=? AND status='completed'
     `, [shopId]);
-    const allTimeCogs = getCogsForPeriod(db, shopId, '', []);
-    const allTimeExp = getExpensesForPeriod(db, shopId, '', []);
+    const allTimeCogs = await getCogsForPeriod(db, shopId, '', []);
+    const allTimeExp = await getExpensesForPeriod(db, shopId, '', []);
     allTimeRow.profit = Math.round((allTimeRow.revenue - allTimeCogs) * 100) / 100;
     allTimeRow.expenses = Math.round(allTimeExp * 100) / 100;
     allTimeRow.net_profit = Math.round((allTimeRow.profit - allTimeExp) * 100) / 100;
 
-    const avgRow = dbGet(db, `
+    const avgRow = await dbGet(db, `
       SELECT COALESCE(AVG(total),0) as avg_order
       FROM sales WHERE tenant_id=? AND status='completed'
-        AND date(created_at) >= date('now','-30 days')
-    `, [shopId]);
+        AND TO_CHAR(created_at, 'YYYY-MM-DD') >= ?
+    `, [shopId, thirtyDaysAgo]);
 
     res.json({
       today: todayRow,
@@ -89,41 +92,45 @@ router.get('/summary', (req, res, next) => {
 });
 
 // GET /api/v1/analytics/trend?days=7
-router.get('/trend', (req, res, next) => {
+router.get('/trend', async (req, res, next) => {
   try {
     const days = Math.min(Number(req.query.days) || 7, 90);
     const db = getDb();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    const cutoffStr = cutoff.toISOString().split('T')[0];
 
-    const revenueRows = dbAll(db, `
-      SELECT date(created_at) as date,
+    const revenueRows = await dbAll(db, `
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date,
              COUNT(*) as sales_count,
              COALESCE(SUM(total),0) as revenue
       FROM sales
       WHERE tenant_id=?
-        AND date(created_at) >= date('now','-' || ? || ' days')
+        AND TO_CHAR(created_at, 'YYYY-MM-DD') >= ?
         AND status='completed'
-      GROUP BY date(created_at)
-      ORDER BY date ASC
-    `, [req.shopId, days - 1]);
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+      ORDER BY TO_CHAR(created_at, 'YYYY-MM-DD') ASC
+    `, [req.shopId, cutoffStr]);
 
-    const cogsRows = dbAll(db, `
-      SELECT date(s.created_at) as date, COALESCE(SUM(si.cost_price * si.quantity),0) as cogs
+    const cogsRows = await dbAll(db, `
+      SELECT TO_CHAR(s.created_at, 'YYYY-MM-DD') as date,
+             COALESCE(SUM(si.cost_price * si.quantity),0) as cogs
       FROM sale_items si JOIN sales s ON si.sale_id = s.id
       WHERE s.tenant_id=?
-        AND date(s.created_at) >= date('now','-' || ? || ' days')
+        AND TO_CHAR(s.created_at, 'YYYY-MM-DD') >= ?
         AND s.status='completed'
-      GROUP BY date(s.created_at)
-    `, [req.shopId, days - 1]);
+      GROUP BY TO_CHAR(s.created_at, 'YYYY-MM-DD')
+    `, [req.shopId, cutoffStr]);
 
     const cogsMap = {};
     for (const r of cogsRows) cogsMap[r.date] = r.cogs;
 
-    const expRows = dbAll(db, `
+    const expRows = await dbAll(db, `
       SELECT date, COALESCE(SUM(amount),0) as expenses
       FROM expenses
-      WHERE tenant_id=? AND date >= date('now','-' || ? || ' days')
+      WHERE tenant_id=? AND date >= ?
       GROUP BY date
-    `, [req.shopId, days - 1]);
+    `, [req.shopId, cutoffStr]);
     const expMap = {};
     for (const r of expRows) expMap[r.date] = r.expenses;
 
@@ -132,13 +139,16 @@ router.get('/trend', (req, res, next) => {
 });
 
 // GET /api/v1/analytics/top-products?days=30&limit=5
-router.get('/top-products', (req, res, next) => {
+router.get('/top-products', async (req, res, next) => {
   try {
     const days = Math.min(Number(req.query.days) || 30, 365);
     const limit = Math.min(Number(req.query.limit) || 5, 20);
     const db = getDb();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
 
-    const rows = dbAll(db, `
+    const rows = await dbAll(db, `
       SELECT p.id, p.name, p.category,
              SUM(si.quantity) as units_sold,
              COALESCE(SUM(si.subtotal),0) as revenue,
@@ -147,12 +157,12 @@ router.get('/top-products', (req, res, next) => {
       JOIN products p ON si.product_id = p.id
       JOIN sales s ON si.sale_id = s.id
       WHERE s.tenant_id=?
-        AND date(s.created_at) >= date('now','-' || ? || ' days')
+        AND TO_CHAR(s.created_at, 'YYYY-MM-DD') >= ?
         AND s.status='completed'
-      GROUP BY si.product_id
+      GROUP BY p.id, p.name, p.category
       ORDER BY revenue DESC
       LIMIT ?
-    `, [req.shopId, days, limit]);
+    `, [req.shopId, cutoffStr, limit]);
 
     res.json(rows.map(r => ({
       ...r,
@@ -165,22 +175,25 @@ router.get('/top-products', (req, res, next) => {
 });
 
 // GET /api/v1/analytics/payment-breakdown?days=30
-router.get('/payment-breakdown', (req, res, next) => {
+router.get('/payment-breakdown', async (req, res, next) => {
   try {
     const days = Math.min(Number(req.query.days) || 30, 365);
     const db = getDb();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
 
-    const rows = dbAll(db, `
+    const rows = await dbAll(db, `
       SELECT payment_method,
              COUNT(*) as sales_count,
              COALESCE(SUM(total),0) as revenue
       FROM sales
       WHERE tenant_id=?
-        AND date(created_at) >= date('now','-' || ? || ' days')
+        AND TO_CHAR(created_at, 'YYYY-MM-DD') >= ?
         AND status='completed'
       GROUP BY payment_method
       ORDER BY revenue DESC
-    `, [req.shopId, days]);
+    `, [req.shopId, cutoffStr]);
 
     res.json(rows);
   } catch (err) { next(err); }

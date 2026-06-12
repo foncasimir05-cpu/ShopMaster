@@ -8,7 +8,7 @@ const v = require('../middleware/validators');
 const router = express.Router();
 
 // GET /api/v1/products
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const { search, category, page = 1, limit = 50 } = req.query;
     const db = getDb();
@@ -30,35 +30,35 @@ router.get('/', (req, res, next) => {
     query += ' ORDER BY name ASC LIMIT ? OFFSET ?';
     params.push(Number(limit), offset);
 
-    res.json(dbAll(db, query, params));
+    res.json(await dbAll(db, query, params));
   } catch (err) {
     next(err);
   }
 });
 
 // GET /api/v1/products/low-stock — must be before /:id
-router.get('/low-stock', (req, res, next) => {
+router.get('/low-stock', async (req, res, next) => {
   try {
     const db = getDb();
-    res.json(dbAll(db,
+    res.json(await dbAll(db,
       'SELECT * FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL) AND min_stock > 0 AND stock <= min_stock ORDER BY stock ASC',
       [req.shopId]
     ));
   } catch (err) { next(err); }
 });
 
-// GET /api/v1/products/export  — CSV download (must be before /:id)
-router.get('/export', (req, res, next) => {
+// GET /api/v1/products/export — CSV download (must be before /:id)
+router.get('/export', async (req, res, next) => {
   try {
     const db = getDb();
-    const products = dbAll(db,
+    const products = await dbAll(db,
       'SELECT name, sku, barcode, price, cost, stock, category, min_stock FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY name ASC',
       [req.shopId]
     );
     const header = 'name,sku,barcode,price,cost,stock,category,min_stock\n';
     const rows = products.map(p =>
       [p.name, p.sku ?? '', p.barcode ?? '', p.price, p.cost, p.stock, p.category ?? '', p.min_stock]
-        .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
+        .map(val => `"${String(val ?? '').replace(/"/g, '""')}"`)
         .join(',')
     ).join('\n');
     res.set({ 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="products.csv"' });
@@ -66,8 +66,8 @@ router.get('/export', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/v1/products/import  — CSV body: { csv: "..." }  (must be before /:id)
-router.post('/import', (req, res, next) => {
+// POST /api/v1/products/import — CSV body: { csv: "..." }  (must be before /:id)
+router.post('/import', async (req, res, next) => {
   try {
     const { csv } = req.body;
     if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'csv string required' });
@@ -107,18 +107,18 @@ router.post('/import', (req, res, next) => {
         const min_stock = parseInt(cols[idx('min_stock')], 10) || 0;
 
         const existing = sku
-          ? dbGet(db, 'SELECT id FROM products WHERE sku = ? AND tenant_id = ?', [sku, req.shopId])
+          ? await dbGet(db, 'SELECT id FROM products WHERE sku = ? AND tenant_id = ?', [sku, req.shopId])
           : null;
 
         if (existing) {
-          dbRun(db,
-            `UPDATE products SET name=?, barcode=?, price=?, cost=?, stock=?, category=?, min_stock=?, updated_at=datetime('now')
+          await dbRun(db,
+            `UPDATE products SET name=?, barcode=?, price=?, cost=?, stock=?, category=?, min_stock=?, updated_at=NOW()
              WHERE id=?`,
             [name, barcode, price, cost, stock, category, min_stock, existing.id]
           );
           updated++;
         } else {
-          dbRun(db,
+          await dbRun(db,
             'INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category, min_stock) VALUES (?,?,?,?,?,?,?,?,?,?)',
             [uuidv4(), req.shopId, name, sku, barcode, price, cost, stock, category, min_stock]
           );
@@ -128,16 +128,15 @@ router.post('/import', (req, res, next) => {
         errors.push(`Row ${i + 1}: ${rowErr.message}`);
       }
     }
-    db._save();
     res.json({ created, updated, errors, total: created + updated });
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/products/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const product = dbGet(db,
+    const product = await dbGet(db,
       'SELECT * FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)',
       [req.params.id, req.shopId]
     );
@@ -149,56 +148,56 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/products
-router.post('/', [...v.createProduct, validate], (req, res, next) => {
+router.post('/', [...v.createProduct, validate], async (req, res, next) => {
   try {
     const { name, sku, barcode, price, cost, stock, category, min_stock } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     const db = getDb();
     const id = uuidv4();
-    dbRun(db,
+    await dbRun(db,
       `INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category, min_stock)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, req.shopId, name, sku, barcode, price ?? 0, cost ?? 0, stock ?? 0, category, min_stock ?? 0]
     );
 
-    res.status(201).json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [id]));
+    res.status(201).json(await dbGet(db, 'SELECT * FROM products WHERE id = ?', [id]));
   } catch (err) {
     next(err);
   }
 });
 
 // PUT /api/v1/products/:id
-router.put('/:id', [...v.updateProduct, validate], (req, res, next) => {
+router.put('/:id', [...v.updateProduct, validate], async (req, res, next) => {
   try {
     const db = getDb();
-    const existing = dbGet(db,
+    const existing = await dbGet(db,
       'SELECT id FROM products WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!existing) return res.status(404).json({ error: 'Product not found' });
 
     const { name, sku, barcode, price, cost, stock, category, min_stock } = req.body;
-    dbRun(db,
+    await dbRun(db,
       `UPDATE products SET name=COALESCE(?,name), sku=COALESCE(?,sku), barcode=COALESCE(?,barcode),
        price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock),
-       category=COALESCE(?,category), min_stock=COALESCE(?,min_stock), updated_at=datetime('now')
+       category=COALESCE(?,category), min_stock=COALESCE(?,min_stock), updated_at=NOW()
        WHERE id = ? AND tenant_id = ?`,
       [name, sku, barcode, price, cost, stock, category, min_stock ?? null, req.params.id, req.shopId]
     );
 
-    res.json(dbGet(db, 'SELECT * FROM products WHERE id = ?', [req.params.id]));
+    res.json(await dbGet(db, 'SELECT * FROM products WHERE id = ?', [req.params.id]));
   } catch (err) {
     next(err);
   }
 });
 
-// DELETE /api/v1/products/:id  (soft-delete — preserves historical sale records)
-router.delete('/:id', (req, res, next) => {
+// DELETE /api/v1/products/:id  (soft-delete)
+router.delete('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const info = dbRun(db,
-      'UPDATE products SET is_deleted = 1, updated_at = datetime(\'now\') WHERE id = ? AND tenant_id = ?',
+    const info = await dbRun(db,
+      "UPDATE products SET is_deleted = 1, updated_at = NOW() WHERE id = ? AND tenant_id = ?",
       [req.params.id, req.shopId]
     );
     if (info.changes === 0) return res.status(404).json({ error: 'Product not found' });
@@ -211,75 +210,70 @@ router.delete('/:id', (req, res, next) => {
 // ── Variant routes ─────────────────────────────────────────────────────────────
 
 // GET /api/v1/products/:id/variants
-router.get('/:id/variants', (req, res, next) => {
+router.get('/:id/variants', async (req, res, next) => {
   try {
     const db = getDb();
-    const product = dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json(dbAll(db, 'SELECT * FROM product_variants WHERE product_id = ? AND tenant_id = ? ORDER BY name ASC', [req.params.id, req.shopId]));
+    res.json(await dbAll(db, 'SELECT * FROM product_variants WHERE product_id = ? AND tenant_id = ? ORDER BY name ASC', [req.params.id, req.shopId]));
   } catch (err) { next(err); }
 });
 
 // POST /api/v1/products/:id/variants
-router.post('/:id/variants', (req, res, next) => {
+router.post('/:id/variants', async (req, res, next) => {
   try {
     const db = getDb();
-    const product = dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const { name, sku, barcode, price, cost, stock, attributes } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     const id = uuidv4();
-    dbRun(db,
+    await dbRun(db,
       `INSERT INTO product_variants (id, product_id, tenant_id, name, sku, barcode, price, cost, stock, attributes)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [id, req.params.id, req.shopId, name, sku || null, barcode || null,
        price ?? 0, cost ?? 0, stock ?? 0, attributes ? JSON.stringify(attributes) : '{}']
     );
-    // Mark parent as having variants
-    dbRun(db, "UPDATE products SET has_variants=1, updated_at=datetime('now') WHERE id=?", [req.params.id]);
-    db._save();
-    res.status(201).json(dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [id]));
+    await dbRun(db, 'UPDATE products SET has_variants=1, updated_at=NOW() WHERE id=?', [req.params.id]);
+    res.status(201).json(await dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [id]));
   } catch (err) { next(err); }
 });
 
 // PUT /api/v1/products/:id/variants/:variantId
-router.put('/:id/variants/:variantId', (req, res, next) => {
+router.put('/:id/variants/:variantId', async (req, res, next) => {
   try {
     const db = getDb();
-    const variant = dbGet(db, 'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
+    const variant = await dbGet(db, 'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
       [req.params.variantId, req.params.id, req.shopId]);
     if (!variant) return res.status(404).json({ error: 'Variant not found' });
 
     const { name, sku, barcode, price, cost, stock } = req.body;
-    dbRun(db,
+    await dbRun(db,
       `UPDATE product_variants SET name=COALESCE(?,name), sku=COALESCE(?,sku), barcode=COALESCE(?,barcode),
-       price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock), updated_at=datetime('now')
+       price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock), updated_at=NOW()
        WHERE id=?`,
       [name || null, sku || null, barcode || null, price ?? null, cost ?? null, stock ?? null, req.params.variantId]
     );
-    db._save();
-    res.json(dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [req.params.variantId]));
+    res.json(await dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [req.params.variantId]));
   } catch (err) { next(err); }
 });
 
 // DELETE /api/v1/products/:id/variants/:variantId
-router.delete('/:id/variants/:variantId', (req, res, next) => {
+router.delete('/:id/variants/:variantId', async (req, res, next) => {
   try {
     const db = getDb();
-    const info = dbRun(db,
+    const info = await dbRun(db,
       'DELETE FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
       [req.params.variantId, req.params.id, req.shopId]
     );
     if (info.changes === 0) return res.status(404).json({ error: 'Variant not found' });
 
-    // If no more variants, unmark parent
-    const remaining = dbGet(db, 'SELECT COUNT(*) as cnt FROM product_variants WHERE product_id = ?', [req.params.id]);
+    const remaining = await dbGet(db, 'SELECT COUNT(*) as cnt FROM product_variants WHERE product_id = ?', [req.params.id]);
     if (!remaining?.cnt) {
-      dbRun(db, "UPDATE products SET has_variants=0, updated_at=datetime('now') WHERE id=?", [req.params.id]);
+      await dbRun(db, 'UPDATE products SET has_variants=0, updated_at=NOW() WHERE id=?', [req.params.id]);
     }
-    db._save();
     res.json({ deleted: true });
   } catch (err) { next(err); }
 });

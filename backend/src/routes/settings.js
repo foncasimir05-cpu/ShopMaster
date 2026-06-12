@@ -23,12 +23,12 @@ function requireRole(...roles) {
 }
 
 // GET /api/v1/settings
-settingsRouter.get('/', (req, res, next) => {
+settingsRouter.get('/', async (req, res, next) => {
   try {
     const db = getDb();
-    let row = dbGet(db, 'SELECT * FROM shop_settings WHERE tenant_id = ?', [req.shopId]);
+    let row = await dbGet(db, 'SELECT * FROM shop_settings WHERE tenant_id = ?', [req.shopId]);
     if (!row) {
-      const tenant = dbGet(db, 'SELECT name FROM tenants WHERE id = ?', [req.shopId]);
+      const tenant = await dbGet(db, 'SELECT name FROM tenants WHERE id = ?', [req.shopId]);
       row = {
         tenant_id: req.shopId,
         name: tenant?.name ?? '',
@@ -49,25 +49,25 @@ settingsRouter.get('/', (req, res, next) => {
 });
 
 // PUT /api/v1/settings
-settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), [...v.updateSettings, validate], (req, res, next) => {
+settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), [...v.updateSettings, validate], async (req, res, next) => {
   try {
     const { name, address, phone, email, tax_enabled, tax_rate, tax_label, currency, receipt_footer } = req.body;
     const db = getDb();
-    dbRun(db, `
+    await dbRun(db, `
       INSERT INTO shop_settings
         (tenant_id, name, address, phone, email, tax_enabled, tax_rate, tax_label, currency, receipt_footer, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-      ON CONFLICT(tenant_id) DO UPDATE SET
-        name           = excluded.name,
-        address        = excluded.address,
-        phone          = excluded.phone,
-        email          = excluded.email,
-        tax_enabled    = excluded.tax_enabled,
-        tax_rate       = excluded.tax_rate,
-        tax_label      = excluded.tax_label,
-        currency       = excluded.currency,
-        receipt_footer = excluded.receipt_footer,
-        updated_at     = excluded.updated_at
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        name           = EXCLUDED.name,
+        address        = EXCLUDED.address,
+        phone          = EXCLUDED.phone,
+        email          = EXCLUDED.email,
+        tax_enabled    = EXCLUDED.tax_enabled,
+        tax_rate       = EXCLUDED.tax_rate,
+        tax_label      = EXCLUDED.tax_label,
+        currency       = EXCLUDED.currency,
+        receipt_footer = EXCLUDED.receipt_footer,
+        updated_at     = EXCLUDED.updated_at
     `, [
       req.shopId,
       name ?? '', address ?? '', phone ?? '', email ?? '',
@@ -84,15 +84,14 @@ settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), [...v.updateSe
 });
 
 // GET /api/v1/settings/premium-status
-settingsRouter.get('/premium-status', (req, res, next) => {
+settingsRouter.get('/premium-status', async (req, res, next) => {
   try {
     const db = getDb();
-    const tenant = dbGet(db,
+    const tenant = await dbGet(db,
       'SELECT is_premium, parent_tenant_id, subscription_plan, subscription_expires_at, subscription_status FROM tenants WHERE id = ?',
       [req.shopId]
     );
     const isPremium = Boolean(tenant?.is_premium);
-    // Expire if past the expiry date
     const expired = isPremium && tenant?.subscription_expires_at
       ? new Date(tenant.subscription_expires_at) < new Date()
       : false;
@@ -107,21 +106,21 @@ settingsRouter.get('/premium-status', (req, res, next) => {
 });
 
 // POST /api/v1/settings/upgrade
-settingsRouter.post('/upgrade', requireRole('admin', 'owner'), (req, res, next) => {
+settingsRouter.post('/upgrade', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const db = getDb();
-    const tenant = dbGet(db, 'SELECT id FROM tenants WHERE id = ?', [req.shopId]);
+    const tenant = await dbGet(db, 'SELECT id FROM tenants WHERE id = ?', [req.shopId]);
     if (!tenant) return res.status(404).json({ error: 'Shop not found. Please log out and log in again.' });
-    dbRun(db, 'UPDATE tenants SET is_premium = 1 WHERE id = ?', [req.shopId]);
+    await dbRun(db, 'UPDATE tenants SET is_premium = 1 WHERE id = ?', [req.shopId]);
     res.json({ isPremium: true });
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/users
-usersRouter.get('/', requireRole('admin', 'owner'), (req, res, next) => {
+usersRouter.get('/', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const db = getDb();
-    res.json(dbAll(db,
+    res.json(await dbAll(db,
       'SELECT id, name, email, role, is_active, created_at FROM users WHERE tenant_id = ? ORDER BY created_at ASC',
       [req.shopId]
     ));
@@ -143,13 +142,13 @@ usersRouter.post('/', requireRole('admin', 'owner'), [...v.createUser, validate]
     const db = getDb();
     const hash = await bcrypt.hash(password, 12);
     const id = uuidv4();
-    dbRun(db,
+    await dbRun(db,
       'INSERT INTO users (id, tenant_id, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)',
       [id, req.shopId, name.trim(), email.trim().toLowerCase(), hash, role]
     );
     res.status(201).json({ id, name, email, role, is_active: 1 });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) {
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already in use for this shop' });
     }
     next(err);
@@ -157,16 +156,16 @@ usersRouter.post('/', requireRole('admin', 'owner'), [...v.createUser, validate]
 });
 
 // PUT /api/v1/users/:id
-usersRouter.put('/:id', requireRole('admin', 'owner'), (req, res, next) => {
+usersRouter.put('/:id', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       'SELECT * FROM users WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { name, role } = req.body;
-    dbRun(db,
+    await dbRun(db,
       'UPDATE users SET name = ?, role = ? WHERE id = ?',
       [name ?? user.name, role ?? user.role, req.params.id]
     );
@@ -177,18 +176,18 @@ usersRouter.put('/:id', requireRole('admin', 'owner'), (req, res, next) => {
 });
 
 // PUT /api/v1/users/:id/deactivate
-usersRouter.put('/:id/deactivate', requireRole('admin', 'owner'), (req, res, next) => {
+usersRouter.put('/:id/deactivate', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     if (req.params.id === req.user.id) {
       return res.status(400).json({ error: 'You cannot deactivate your own account' });
     }
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       'SELECT * FROM users WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
-    dbRun(db, 'UPDATE users SET is_active = 0 WHERE id = ?', [req.params.id]);
+    await dbRun(db, 'UPDATE users SET is_active = 0 WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     next(err);

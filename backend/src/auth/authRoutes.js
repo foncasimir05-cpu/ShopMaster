@@ -13,10 +13,10 @@ const router = express.Router();
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-function generateRefreshToken(db, userId) {
+async function generateRefreshToken(db, userId) {
   const token = crypto.randomBytes(64).toString('hex');
   const expiresAt = new Date(Date.now() + REFRESH_TTL_MS).toISOString();
-  dbRun(db,
+  await dbRun(db,
     'INSERT INTO refresh_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)',
     [uuidv4(), userId, token, expiresAt]
   );
@@ -43,9 +43,9 @@ router.post('/register-shop', [...v.registerShop, validate], async (req, res, ne
     const hash = await bcrypt.hash(password, 12);
     const answerHash = await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10);
 
-    dbTransaction(db, () => {
-      dbRun(db, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
-      dbRun(db,
+    await dbTransaction(db, async (client) => {
+      await dbRun(client, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
+      await dbRun(client,
         'INSERT INTO users (id, tenant_id, name, email, password, role, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [userId, shopId, ownerName, email, hash, 'admin', securityQuestion, answerHash]
       );
@@ -53,11 +53,11 @@ router.post('/register-shop', [...v.registerShop, validate], async (req, res, ne
 
     const user = { id: userId, name: ownerName, email, role: 'admin', shopId, shopName };
     const accessToken = signAccessToken(user);
-    const refreshToken = generateRefreshToken(db, userId);
+    const refreshToken = await generateRefreshToken(db, userId);
 
     res.status(201).json({ accessToken, refreshToken, user });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) {
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already registered for this shop' });
     }
     next(err);
@@ -73,7 +73,7 @@ router.post('/login', [...v.login, validate], async (req, res, next) => {
     }
 
     const db = getDb();
-    const row = dbGet(db,
+    const row = await dbGet(db,
       `SELECT u.*, t.name AS shopName
        FROM users u JOIN tenants t ON u.tenant_id = t.id
        WHERE u.email = ? AND u.tenant_id = ?`,
@@ -93,7 +93,7 @@ router.post('/login', [...v.login, validate], async (req, res, next) => {
       shopName: row.shopName,
     };
     const accessToken = signAccessToken(user);
-    const refreshToken = generateRefreshToken(db, row.id);
+    const refreshToken = await generateRefreshToken(db, row.id);
 
     res.json({ accessToken, refreshToken, user });
   } catch (err) {
@@ -102,13 +102,13 @@ router.post('/login', [...v.login, validate], async (req, res, next) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', (req, res, next) => {
+router.post('/refresh', async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(400).json({ error: 'refreshToken is required' });
 
     const db = getDb();
-    const stored = dbGet(db,
+    const stored = await dbGet(db,
       `SELECT rt.*, u.id AS userId, u.name, u.email, u.role,
               u.tenant_id AS shopId, t.name AS shopName
        FROM refresh_tokens rt
@@ -119,7 +119,7 @@ router.post('/refresh', (req, res, next) => {
     );
 
     if (!stored || new Date(stored.expires_at) < new Date()) {
-      if (stored) dbRun(db, 'DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+      if (stored) await dbRun(db, 'DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
 
@@ -146,7 +146,7 @@ router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
     if (!email) return res.status(400).json({ error: 'email is required' });
 
     const db = getDb();
-    const users = dbAll(db,
+    const users = await dbAll(db,
       `SELECT u.id, u.name, u.tenant_id AS shopId, t.name AS shopName, u.security_question
        FROM users u JOIN tenants t ON u.tenant_id = t.id
        WHERE LOWER(u.email) = LOWER(?)`,
@@ -160,13 +160,13 @@ router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    users.forEach(u => {
-      dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]);
-      dbRun(db,
+    for (const u of users) {
+      await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]);
+      await dbRun(db,
         'INSERT INTO password_reset_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)',
         [uuidv4(), u.id, otp, expiresAt]
       );
-    });
+    }
 
     const shopRows = users.map(u =>
       `<tr>
@@ -206,11 +206,9 @@ router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
     if (!sent) {
       const hasSecurityQuestion = users.some(u => u.security_question);
       if (hasSecurityQuestion) {
-        // Keep OTP tokens — they'll be revealed only after security answer is verified
         return res.json({ sent: false, requiresSecurityQuestion: true, shops });
       }
-      // No fallback available — clear tokens and fail
-      users.forEach(u => dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]));
+      for (const u of users) await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [u.id]);
       return res.status(503).json({
         error: 'Could not send the recovery email. Please contact your administrator to check the email configuration.',
       });
@@ -220,14 +218,14 @@ router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/security-question  — fetch the question for a specific shop+email
+// POST /api/auth/security-question
 router.post('/security-question', [...v.securityQuestion, validate], async (req, res, next) => {
   try {
     const { email, shopId } = req.body;
     if (!email || !shopId) return res.status(400).json({ error: 'email and shopId are required' });
 
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       'SELECT security_question FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ?',
       [email.trim(), shopId.trim()]
     );
@@ -240,7 +238,7 @@ router.post('/security-question', [...v.securityQuestion, validate], async (req,
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/verify-security  — verify answer, return OTP so client can proceed to reset
+// POST /api/auth/verify-security
 router.post('/verify-security', [...v.verifySecurity, validate], async (req, res, next) => {
   try {
     const { email, shopId, answer } = req.body;
@@ -249,7 +247,7 @@ router.post('/verify-security', [...v.verifySecurity, validate], async (req, res
     }
 
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       'SELECT id, security_answer FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ?',
       [email.trim(), shopId.trim()]
     );
@@ -263,8 +261,7 @@ router.post('/verify-security', [...v.verifySecurity, validate], async (req, res
       return res.status(401).json({ error: 'Incorrect answer. Please try again.' });
     }
 
-    // Find the pending OTP token created by /forgot
-    const record = dbGet(db,
+    const record = await dbGet(db,
       'SELECT token FROM password_reset_tokens WHERE user_id = ? AND used = 0 AND expires_at > ?',
       [user.id, new Date().toISOString()]
     );
@@ -289,13 +286,13 @@ router.post('/reset-password', [...v.resetPassword, validate], async (req, res, 
     }
 
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND tenant_id = ?',
       [email.trim(), shopId.trim()]
     );
     if (!user) return res.status(404).json({ error: 'No account found with this email and Shop ID.' });
 
-    const record = dbGet(db,
+    const record = await dbGet(db,
       'SELECT * FROM password_reset_tokens WHERE user_id = ? AND token = ? AND used = 0',
       [user.id, otp.trim()]
     );
@@ -305,18 +302,18 @@ router.post('/reset-password', [...v.resetPassword, validate], async (req, res, 
     }
 
     const hash = await bcrypt.hash(newPassword, 12);
-    dbRun(db, 'UPDATE users SET password = ? WHERE id = ?', [hash, user.id]);
-    dbRun(db, 'UPDATE password_reset_tokens SET used = 1 WHERE id = ?', [record.id]);
+    await dbRun(db, 'UPDATE users SET password = ? WHERE id = ?', [hash, user.id]);
+    await dbRun(db, 'UPDATE password_reset_tokens SET used = 1 WHERE id = ?', [record.id]);
 
     res.json({ success: true });
   } catch (err) { next(err); }
 });
 
 // GET /api/auth/me
-router.get('/me', authenticateToken, (req, res, next) => {
+router.get('/me', authenticateToken, async (req, res, next) => {
   try {
     const db = getDb();
-    const user = dbGet(db,
+    const user = await dbGet(db,
       `SELECT u.id, u.name, u.email, u.role,
               u.tenant_id AS shopId, t.name AS shopName, u.created_at
        FROM users u JOIN tenants t ON u.tenant_id = t.id

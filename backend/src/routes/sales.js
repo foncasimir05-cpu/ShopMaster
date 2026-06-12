@@ -12,68 +12,68 @@ const router = express.Router();
 // ── Report routes must be registered before /:id ──────────────────────────────
 
 // GET /api/v1/sales/report/daily?date=YYYY-MM-DD
-router.get('/report/daily', (req, res, next) => {
+router.get('/report/daily', async (req, res, next) => {
   try {
     const { date } = req.query;
     if (!date) return res.status(400).json({ error: 'date param required (YYYY-MM-DD)' });
     const db = getDb();
-    const byHour = dbAll(db, `
-      SELECT strftime('%H', created_at) as hour,
+    const byHour = await dbAll(db, `
+      SELECT TO_CHAR(created_at, 'HH24') as hour,
              COUNT(*) as sales_count,
              SUM(total) as revenue,
              SUM(discount) as total_discount
       FROM sales
-      WHERE tenant_id = ? AND date(created_at) = ? AND status = 'completed'
-      GROUP BY hour ORDER BY hour
+      WHERE tenant_id = ? AND TO_CHAR(created_at, 'YYYY-MM-DD') = ? AND status = 'completed'
+      GROUP BY TO_CHAR(created_at, 'HH24') ORDER BY hour
     `, [req.shopId, date]);
-    const summary = dbGet(db, `
+    const summary = await dbGet(db, `
       SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue,
              COALESCE(SUM(discount),0) as total_discount
-      FROM sales WHERE tenant_id = ? AND date(created_at) = ? AND status = 'completed'
+      FROM sales WHERE tenant_id = ? AND TO_CHAR(created_at, 'YYYY-MM-DD') = ? AND status = 'completed'
     `, [req.shopId, date]);
     res.json({ date, summary, byHour });
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/sales/report/weekly?week=YYYY-WW
-router.get('/report/weekly', (req, res, next) => {
+router.get('/report/weekly', async (req, res, next) => {
   try {
     const { week } = req.query;
     if (!week) return res.status(400).json({ error: 'week param required (YYYY-WW)' });
     const db = getDb();
-    const byDay = dbAll(db, `
-      SELECT strftime('%Y-%m-%d', created_at) as date,
+    const byDay = await dbAll(db, `
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date,
              COUNT(*) as sales_count,
              SUM(total) as revenue
       FROM sales
-      WHERE tenant_id = ? AND strftime('%Y-%W', created_at) = ? AND status = 'completed'
-      GROUP BY date ORDER BY date
+      WHERE tenant_id = ? AND TO_CHAR(created_at, 'IYYY-IW') = ? AND status = 'completed'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD') ORDER BY date
     `, [req.shopId, week]);
-    const summary = dbGet(db, `
+    const summary = await dbGet(db, `
       SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue
-      FROM sales WHERE tenant_id = ? AND strftime('%Y-%W', created_at) = ? AND status = 'completed'
+      FROM sales WHERE tenant_id = ? AND TO_CHAR(created_at, 'IYYY-IW') = ? AND status = 'completed'
     `, [req.shopId, week]);
     res.json({ week, summary, byDay });
   } catch (err) { next(err); }
 });
 
 // GET /api/v1/sales/report/monthly?month=YYYY-MM
-router.get('/report/monthly', (req, res, next) => {
+router.get('/report/monthly', async (req, res, next) => {
   try {
     const { month } = req.query;
     if (!month) return res.status(400).json({ error: 'month param required (YYYY-MM)' });
     const db = getDb();
-    const byDay = dbAll(db, `
-      SELECT strftime('%Y-%m-%d', created_at) as date,
+    const byDay = await dbAll(db, `
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date,
              COUNT(*) as sales_count,
              SUM(total) as revenue
       FROM sales
-      WHERE tenant_id = ? AND strftime('%Y-%m', created_at) = ? AND status = 'completed'
-      GROUP BY date ORDER BY date
+      WHERE tenant_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = ? AND status = 'completed'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD') ORDER BY date
     `, [req.shopId, month]);
-    const summary = dbGet(db, `
+    const summary = await dbGet(db, `
       SELECT COUNT(*) as total_sales, COALESCE(SUM(total),0) as total_revenue
-      FROM sales WHERE tenant_id = ? AND strftime('%Y-%m', created_at) = ? AND status = 'completed'
+      FROM sales WHERE tenant_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = ? AND status = 'completed'
     `, [req.shopId, month]);
     res.json({ month, summary, byDay });
   } catch (err) { next(err); }
@@ -82,7 +82,7 @@ router.get('/report/monthly', (req, res, next) => {
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 
 // GET /api/v1/sales
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const { page = 1, limit = 50, startDate, endDate } = req.query;
     const db = getDb();
@@ -90,17 +90,17 @@ router.get('/', (req, res, next) => {
 
     let where = 'WHERE s.tenant_id = ?';
     const params = [req.shopId];
-    if (startDate) { where += ' AND date(s.created_at) >= ?'; params.push(startDate); }
-    if (endDate)   { where += ' AND date(s.created_at) <= ?'; params.push(endDate); }
+    if (startDate) { where += ' AND TO_CHAR(s.created_at, \'YYYY-MM-DD\') >= ?'; params.push(startDate); }
+    if (endDate)   { where += ' AND TO_CHAR(s.created_at, \'YYYY-MM-DD\') <= ?'; params.push(endDate); }
 
-    const sales = dbAll(db,
+    const sales = await dbAll(db,
       `SELECT s.*, u.email as cashier_email FROM sales s
        JOIN users u ON s.user_id = u.id
        ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
       [...params, Number(limit), offset]
     );
 
-    const countRow = dbGet(db,
+    const countRow = await dbGet(db,
       `SELECT COUNT(*) as total_count FROM sales s ${where}`,
       params
     );
@@ -110,15 +110,15 @@ router.get('/', (req, res, next) => {
 });
 
 // GET /api/v1/sales/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const sale = dbGet(db,
+    const sale = await dbGet(db,
       'SELECT * FROM sales WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
-    const items = dbAll(db,
+    const items = await dbAll(db,
       `SELECT si.*, p.name as product_name, p.sku,
               ROUND((si.unit_price - si.cost_price) * si.quantity, 2) as item_profit
        FROM sale_items si
@@ -132,7 +132,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/sales
-router.post('/', [...v.createSale, validate], (req, res, next) => {
+router.post('/', [...v.createSale, validate], async (req, res, next) => {
   const { items, discount = 0, taxRate = 0, paymentMethod = 'cash', customerId, promoCode } = req.body;
   try {
     if (!Array.isArray(items) || items.length === 0) {
@@ -142,20 +142,19 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
     const db = getDb();
     const saleId = uuidv4();
 
-    const result = dbTransaction(db, () => {
-      // Validate customer if provided
+    const result = await dbTransaction(db, async (client) => {
       if (customerId) {
-        const cust = dbGet(db, 'SELECT id FROM customers WHERE id = ? AND tenant_id = ?', [customerId, req.shopId]);
+        const cust = await dbGet(client, 'SELECT id FROM customers WHERE id = ? AND tenant_id = ?', [customerId, req.shopId]);
         if (!cust) throw Object.assign(new Error('Customer not found'), { status: 404 });
       }
 
-      // Validate all items and compute totals before any writes
       let subtotal = 0;
-      const resolved = items.map(({ productId, variantId, quantity, unitPrice }) => {
+      const resolved = [];
+      for (const { productId, variantId, quantity, unitPrice } of items) {
         let price, costPrice, displayName, stockSource;
 
         if (variantId) {
-          const variant = dbGet(db,
+          const variant = await dbGet(client,
             'SELECT * FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
             [variantId, productId, req.shopId]
           );
@@ -166,7 +165,7 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
           displayName = variant.name;
           stockSource = { type: 'variant', id: variantId };
         } else {
-          const product = dbGet(db,
+          const product = await dbGet(client,
             'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
             [productId, req.shopId]
           );
@@ -180,13 +179,13 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
 
         const lineTotal = price * quantity;
         subtotal += lineTotal;
-        return { productId, variantId: variantId || null, quantity, price, costPrice, lineTotal, displayName, stockSource };
-      });
+        resolved.push({ productId, variantId: variantId || null, quantity, price, costPrice, lineTotal, displayName, stockSource });
+      }
 
       let promoId = null;
       let promoDiscount = 0;
       if (promoCode) {
-        const promo = dbGet(db,
+        const promo = await dbGet(client,
           "SELECT * FROM promotions WHERE code = ? AND tenant_id = ? AND is_active = 1",
           [promoCode.toUpperCase().trim(), req.shopId]
         );
@@ -203,38 +202,38 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
       const taxAmount = (subtotal - discountAmount) * Number(taxRate);
       const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
-      dbRun(db,
+      await dbRun(client,
         `INSERT INTO sales (id, tenant_id, user_id, total, discount, tax, payment_method, customer_id, promo_id)
          VALUES (?,?,?,?,?,?,?,?,?)`,
         [saleId, req.shopId, req.user.id, total, discountAmount, taxAmount, paymentMethod, customerId || null, promoId]
       );
 
-      const insertedItems = resolved.map(({ productId, variantId, quantity, price, lineTotal, displayName, stockSource }) => {
+      const insertedItems = [];
+      for (const { productId, variantId, quantity, price, costPrice, lineTotal, displayName, stockSource } of resolved) {
         if (stockSource.type === 'variant') {
-          dbRun(db, "UPDATE product_variants SET stock = stock - ?, updated_at = datetime('now') WHERE id = ?",
+          await dbRun(client, 'UPDATE product_variants SET stock = stock - ?, updated_at = NOW() WHERE id = ?',
             [quantity, stockSource.id]);
         } else {
-          dbRun(db, "UPDATE products SET stock = stock - ?, updated_at = datetime('now') WHERE id = ?",
+          await dbRun(client, 'UPDATE products SET stock = stock - ?, updated_at = NOW() WHERE id = ?',
             [quantity, productId]);
         }
-        dbRun(db,
+        await dbRun(client,
           `INSERT INTO stock_movements (id, tenant_id, product_id, sale_id, delta, type) VALUES (?,?,?,?,?,?)`,
           [uuidv4(), req.shopId, productId, saleId, -quantity, 'sale']
         );
         const itemId = uuidv4();
-        dbRun(db,
+        await dbRun(client,
           'INSERT INTO sale_items (id, sale_id, product_id, variant_id, quantity, unit_price, cost_price, subtotal) VALUES (?,?,?,?,?,?,?,?)',
           [itemId, saleId, productId, variantId, quantity, price, costPrice, lineTotal]
         );
-        return { id: itemId, product_id: productId, variant_id: variantId, product_name: displayName, quantity, unit_price: price, cost_price: costPrice, subtotal: lineTotal };
-      });
+        insertedItems.push({ id: itemId, product_id: productId, variant_id: variantId, product_name: displayName, quantity, unit_price: price, cost_price: costPrice, subtotal: lineTotal });
+      }
 
-      // Award loyalty points to customer
       if (customerId) {
         const points = Math.floor(total / 100);
-        dbRun(db,
+        await dbRun(client,
           `UPDATE customers SET loyalty_points = loyalty_points + ?, total_spent = total_spent + ?,
-           visit_count = visit_count + 1, updated_at = datetime('now') WHERE id = ?`,
+           visit_count = visit_count + 1, updated_at = NOW() WHERE id = ?`,
           [points, total, customerId]
         );
       }
@@ -242,7 +241,6 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
       return { saleId, subtotal, discount: discountAmount, promoDiscount, tax: taxAmount, total, paymentMethod, items: insertedItems };
     });
 
-    db._save();
     res.status(201).json(result);
   } catch (err) {
     console.error('Sale insert error:', err.message);
@@ -252,38 +250,38 @@ router.post('/', [...v.createSale, validate], (req, res, next) => {
 });
 
 // DELETE /api/v1/sales/:id  — void sale + restore stock
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const db = getDb();
-    const sale = dbGet(db,
+    const sale = await dbGet(db,
       'SELECT * FROM sales WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
     if (sale.status === 'voided') return res.status(409).json({ error: 'Sale already voided' });
 
-    const saleItems = dbAll(db, 'SELECT * FROM sale_items WHERE sale_id = ?', [req.params.id]);
+    const saleItems = await dbAll(db, 'SELECT * FROM sale_items WHERE sale_id = ?', [req.params.id]);
 
-    dbTransaction(db, () => {
+    await dbTransaction(db, async (client) => {
       for (const item of saleItems) {
         if (item.variant_id) {
-          dbRun(db,
-            "UPDATE product_variants SET stock = stock + ?, updated_at = datetime('now') WHERE id = ?",
+          await dbRun(client,
+            'UPDATE product_variants SET stock = stock + ?, updated_at = NOW() WHERE id = ?',
             [item.quantity, item.variant_id]
           );
         } else {
-          dbRun(db,
-            "UPDATE products SET stock = stock + ?, updated_at = datetime('now') WHERE id = ?",
+          await dbRun(client,
+            'UPDATE products SET stock = stock + ?, updated_at = NOW() WHERE id = ?',
             [item.quantity, item.product_id]
           );
         }
-        dbRun(db,
+        await dbRun(client,
           `INSERT INTO stock_movements (id, tenant_id, product_id, sale_id, delta, type)
            VALUES (?,?,?,?,?,?)`,
           [uuidv4(), req.shopId, item.product_id, req.params.id, item.quantity, 'void']
         );
       }
-      dbRun(db, "UPDATE sales SET status = 'voided' WHERE id = ?", [req.params.id]);
+      await dbRun(client, "UPDATE sales SET status = 'voided' WHERE id = ?", [req.params.id]);
     });
 
     res.json({ message: 'Sale voided', saleId: req.params.id });
@@ -294,17 +292,17 @@ router.delete('/:id', (req, res, next) => {
 router.get('/:id/invoice', async (req, res, next) => {
   try {
     const db = getDb();
-    const sale = dbGet(db,
+    const sale = await dbGet(db,
       'SELECT * FROM sales WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
-    const items = dbAll(db,
+    const items = await dbAll(db,
       `SELECT si.*, p.name as product_name FROM sale_items si
        JOIN products p ON si.product_id = p.id WHERE si.sale_id = ?`,
       [req.params.id]
     );
-    const tenant = dbGet(db, 'SELECT * FROM tenants WHERE id = ?', [req.shopId]);
+    const tenant = await dbGet(db, 'SELECT * FROM tenants WHERE id = ?', [req.shopId]);
     const pdfBuffer = await generateInvoicePdf({ sale, items, tenant });
     res.set({
       'Content-Type': 'application/pdf',
@@ -320,14 +318,14 @@ router.post('/:id/send-receipt', [...v.sendReceipt, validate], async (req, res, 
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'email is required' });
     const db = getDb();
-    const sale = dbGet(db, 'SELECT * FROM sales WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const sale = await dbGet(db, 'SELECT * FROM sales WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
     if (!sale) return res.status(404).json({ error: 'Sale not found' });
-    const items = dbAll(db,
+    const items = await dbAll(db,
       `SELECT si.*, p.name as product_name FROM sale_items si
        JOIN products p ON si.product_id = p.id WHERE si.sale_id = ?`,
       [req.params.id]
     );
-    const shopSettings = dbGet(db, 'SELECT * FROM shop_settings WHERE tenant_id = ?', [req.shopId]);
+    const shopSettings = await dbGet(db, 'SELECT * FROM shop_settings WHERE tenant_id = ?', [req.shopId]);
     await sendReceiptEmail({ to: email, shop: shopSettings, sale, items });
     res.json({ message: `Receipt sent to ${email}` });
   } catch (err) { next(err); }
