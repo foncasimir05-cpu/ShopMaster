@@ -2,6 +2,8 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../config/dbHelpers');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -48,7 +50,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/purchase-orders
-router.post('/', (req, res, next) => {
+router.post('/', [...v.createPurchaseOrder, validate], (req, res, next) => {
   try {
     const { supplierId, items, notes } = req.body;
     if (!Array.isArray(items) || items.length === 0) {

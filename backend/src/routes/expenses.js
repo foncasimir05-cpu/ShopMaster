@@ -2,6 +2,8 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -46,7 +48,7 @@ router.get('/summary', (req, res, next) => {
 });
 
 // POST /api/v1/expenses
-router.post('/', (req, res, next) => {
+router.post('/', [...v.createExpense, validate], (req, res, next) => {
   try {
     const { amount, category, description, date } = req.body;
     if (!amount || isNaN(Number(amount))) return res.status(400).json({ error: 'amount is required' });
@@ -62,7 +64,7 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/v1/expenses/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', [...v.updateExpense, validate], (req, res, next) => {
   try {
     const { amount, category, description, date } = req.body;
     const db = getDb();

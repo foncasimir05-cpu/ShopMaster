@@ -2,6 +2,8 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -50,7 +52,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/customers
-router.post('/', (req, res, next) => {
+router.post('/', [...v.createCustomer, validate], (req, res, next) => {
   try {
     const { name, phone, email } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
@@ -67,7 +69,7 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/v1/customers/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', [...v.updateCustomer, validate], (req, res, next) => {
   try {
     const db = getDb();
     const existing = dbGet(db,

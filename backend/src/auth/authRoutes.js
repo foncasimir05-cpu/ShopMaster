@@ -6,6 +6,8 @@ const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../config/dbHelpers');
 const { signAccessToken, authenticateToken } = require('../middleware/authenticateToken');
 const { sendMail } = require('../services/mailer');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -22,7 +24,7 @@ function generateRefreshToken(db, userId) {
 }
 
 // POST /api/auth/register-shop
-router.post('/register-shop', async (req, res, next) => {
+router.post('/register-shop', [...v.registerShop, validate], async (req, res, next) => {
   try {
     const { shopName, ownerName, email, password, securityQuestion, securityAnswer } = req.body;
     if (!shopName || !ownerName || !email || !password) {
@@ -63,7 +65,7 @@ router.post('/register-shop', async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res, next) => {
+router.post('/login', [...v.login, validate], async (req, res, next) => {
   try {
     const { email, password, shopId } = req.body;
     if (!email || !password || !shopId) {
@@ -138,7 +140,7 @@ router.post('/refresh', (req, res, next) => {
 });
 
 // POST /api/auth/forgot
-router.post('/forgot', async (req, res, next) => {
+router.post('/forgot', [...v.forgot, validate], async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'email is required' });
@@ -219,7 +221,7 @@ router.post('/forgot', async (req, res, next) => {
 });
 
 // POST /api/auth/security-question  — fetch the question for a specific shop+email
-router.post('/security-question', async (req, res, next) => {
+router.post('/security-question', [...v.securityQuestion, validate], async (req, res, next) => {
   try {
     const { email, shopId } = req.body;
     if (!email || !shopId) return res.status(400).json({ error: 'email and shopId are required' });
@@ -239,7 +241,7 @@ router.post('/security-question', async (req, res, next) => {
 });
 
 // POST /api/auth/verify-security  — verify answer, return OTP so client can proceed to reset
-router.post('/verify-security', async (req, res, next) => {
+router.post('/verify-security', [...v.verifySecurity, validate], async (req, res, next) => {
   try {
     const { email, shopId, answer } = req.body;
     if (!email || !shopId || !answer) {
@@ -276,7 +278,7 @@ router.post('/verify-security', async (req, res, next) => {
 });
 
 // POST /api/auth/reset-password
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', [...v.resetPassword, validate], async (req, res, next) => {
   try {
     const { email, shopId, otp, newPassword } = req.body;
     if (!email || !shopId || !otp || !newPassword) {

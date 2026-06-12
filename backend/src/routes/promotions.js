@@ -2,6 +2,8 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -42,7 +44,7 @@ router.post('/validate', (req, res, next) => {
 });
 
 // POST /api/v1/promotions
-router.post('/', (req, res, next) => {
+router.post('/', [...v.createPromotion, validate], (req, res, next) => {
   try {
     const { name, code, type, value, min_purchase, expires_at, is_active } = req.body;
     if (!name || !type || value == null) {
@@ -67,7 +69,7 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/v1/promotions/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', [...v.updatePromotion, validate], (req, res, next) => {
   try {
     const { name, code, type, value, min_purchase, expires_at, is_active } = req.body;
     const db = getDb();

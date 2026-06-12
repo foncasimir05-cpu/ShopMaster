@@ -4,6 +4,8 @@ const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
 const { authenticateToken } = require('../middleware/authenticateToken');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const settingsRouter = express.Router();
 const usersRouter = express.Router();
@@ -47,7 +49,7 @@ settingsRouter.get('/', (req, res, next) => {
 });
 
 // PUT /api/v1/settings
-settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), (req, res, next) => {
+settingsRouter.put('/', requireRole('admin', 'owner', 'manager'), [...v.updateSettings, validate], (req, res, next) => {
   try {
     const { name, address, phone, email, tax_enabled, tax_rate, tax_label, currency, receipt_footer } = req.body;
     const db = getDb();
@@ -129,7 +131,7 @@ usersRouter.get('/', requireRole('admin', 'owner'), (req, res, next) => {
 });
 
 // POST /api/v1/users
-usersRouter.post('/', requireRole('admin', 'owner'), async (req, res, next) => {
+usersRouter.post('/', requireRole('admin', 'owner'), [...v.createUser, validate], async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
     if (!name || !email || !password || !role) {

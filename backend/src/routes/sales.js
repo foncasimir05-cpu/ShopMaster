@@ -4,6 +4,8 @@ const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../config/dbHelpers');
 const { generateInvoicePdf } = require('../services/pdf');
 const { sendReceiptEmail } = require('../services/mailer');
+const validate = require('../middleware/validate');
+const v = require('../middleware/validators');
 
 const router = express.Router();
 
@@ -130,7 +132,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/v1/sales
-router.post('/', (req, res, next) => {
+router.post('/', [...v.createSale, validate], (req, res, next) => {
   const { items, discount = 0, taxRate = 0, paymentMethod = 'cash', customerId, promoCode } = req.body;
   try {
     if (!Array.isArray(items) || items.length === 0) {
@@ -313,7 +315,7 @@ router.get('/:id/invoice', async (req, res, next) => {
 });
 
 // POST /api/v1/sales/:id/send-receipt
-router.post('/:id/send-receipt', async (req, res, next) => {
+router.post('/:id/send-receipt', [...v.sendReceipt, validate], async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'email is required' });
