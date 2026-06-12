@@ -22,9 +22,6 @@ const api = axios.create({ baseURL: BASE_URL });
 // Attach JWT token to every request
 api.interceptors.request.use(async config => {
   const token = await getItem('auth_token');
-  console.log('Interceptor token:', token ? 'found' : 'MISSING');
-  console.log('Sending token:', token?.substring(0, 20) + '...');
-  console.log('Full auth header:', 'Bearer ' + token?.substring(0, 20));
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -184,5 +181,9 @@ export const deleteExpense = (id) => api.delete(`/expenses/${id}`).then(r => r.d
 
 // Email receipt
 export const sendReceiptEmail = (saleId, email) => api.post(`/sales/${saleId}/send-receipt`, { email }).then(r => r.data);
+
+// Offline sync
+export const syncBatch = (operations) => api.post('/sync/batch', { operations }).then(r => r.data);
+export const syncPull  = (since)      => api.get('/sync/pull', { params: { since } }).then(r => r.data);
 
 export default api;

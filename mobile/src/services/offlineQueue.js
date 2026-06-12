@@ -1,7 +1,9 @@
 import { getItem, setItem } from './storage';
 
 const PRODUCTS_KEY = 'shopmaster_products_cache';
-const SALES_QUEUE_KEY = 'shopmaster_pending_sales';
+const QUEUE_KEY    = 'shopmaster_pending_sales'; // keep old key — handles in-flight items
+
+// ── Product cache ─────────────────────────────────────────────────────────────
 
 export async function cacheProducts(products) {
   try { await setItem(PRODUCTS_KEY, JSON.stringify(products)); } catch {}
@@ -14,31 +16,59 @@ export async function getCachedProducts() {
   } catch { return []; }
 }
 
-export async function queueSale(saleData) {
+// ── Operations queue ──────────────────────────────────────────────────────────
+// Each entry: { clientId, type, data, queuedAt }
+// Old entries (pre-generalisation) had { localId, data } — handled transparently.
+
+export async function queueOperation(type, data) {
   try {
-    const raw = await getItem(SALES_QUEUE_KEY);
+    const raw = await getItem(QUEUE_KEY);
     const queue = raw ? JSON.parse(raw) : [];
-    const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    queue.push({ localId, data: saleData, queuedAt: new Date().toISOString() });
-    await setItem(SALES_QUEUE_KEY, JSON.stringify(queue));
-  } catch (e) { console.warn('queueSale error:', e); }
+    queue.push({
+      clientId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type,
+      data,
+      queuedAt: new Date().toISOString(),
+    });
+    await setItem(QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) { console.warn('queueOperation error:', e); }
 }
 
-export async function getPendingSales() {
+// Convenience alias — existing callers in POSScreen stay unchanged
+export const queueSale = (data) => queueOperation('sale', data);
+
+export async function getPendingOperations() {
   try {
-    const raw = await getItem(SALES_QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const raw = await getItem(QUEUE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw).map(op => ({
+      // Normalise old format ({ localId, data }) to new format
+      clientId: op.clientId ?? op.localId,
+      type:     op.type ?? 'sale',
+      data:     op.data,
+      queuedAt: op.queuedAt,
+    }));
   } catch { return []; }
 }
 
-export async function removePendingSale(localId) {
+// Backward-compat alias
+export const getPendingSales = getPendingOperations;
+
+export async function removeOperation(clientId) {
   try {
-    const sales = await getPendingSales();
-    await setItem(SALES_QUEUE_KEY, JSON.stringify(sales.filter(s => s.localId !== localId)));
+    const raw = await getItem(QUEUE_KEY);
+    if (!raw) return;
+    const queue = JSON.parse(raw).filter(op =>
+      (op.clientId ?? op.localId) !== clientId
+    );
+    await setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch {}
 }
 
+// Backward-compat alias
+export const removePendingSale = removeOperation;
+
 export async function getPendingCount() {
-  const sales = await getPendingSales();
-  return sales.length;
+  const ops = await getPendingOperations();
+  return ops.length;
 }
