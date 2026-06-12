@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getLowStockProducts } from '../services/api';
 import { connectSSE } from '../services/sseClient';
 import { useAuth } from './AuthContext';
@@ -56,8 +56,10 @@ export function StockAlertProvider({ children }) {
     };
   }, [accessToken, refresh, onLowStock]);
 
+  const value = useMemo(() => ({ count, products, refresh }), [count, products, refresh]);
+
   return (
-    <StockAlertContext.Provider value={{ count, products, refresh }}>
+    <StockAlertContext.Provider value={value}>
       {children}
     </StockAlertContext.Provider>
   );

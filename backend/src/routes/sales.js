@@ -5,6 +5,7 @@ const { dbGet, dbAll, dbRun, dbTransaction } = require('../config/dbHelpers');
 const { generateInvoicePdf } = require('../services/pdf');
 const { sendReceiptEmail } = require('../services/mailer');
 const { publish } = require('../services/eventBus');
+const { sendLowStockPush } = require('../services/push');
 const validate = require('../middleware/validate');
 const v = require('../middleware/validators');
 
@@ -255,7 +256,10 @@ router.post('/', [...v.createSale, validate], async (req, res, next) => {
             'SELECT id, name, stock, min_stock FROM products WHERE id = ? AND min_stock > 0 AND stock <= min_stock',
             [pid]
           );
-          if (p) publish(req.shopId, 'low_stock', { productId: p.id, name: p.name, stock: p.stock, minStock: p.min_stock });
+          if (p) {
+            publish(req.shopId, 'low_stock', { productId: p.id, name: p.name, stock: p.stock, minStock: p.min_stock });
+            await sendLowStockPush(db, req.shopId, p);
+          }
         }
       } catch {}
     });

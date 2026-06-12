@@ -252,6 +252,16 @@ async function createTables() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (client_id, tenant_id)
       );
+
+      CREATE TABLE IF NOT EXISTS push_tokens (
+        id         TEXT PRIMARY KEY,
+        tenant_id  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      TEXT NOT NULL,
+        platform   TEXT NOT NULL DEFAULT 'expo',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, token)
+      );
     `);
   } finally {
     client.release();

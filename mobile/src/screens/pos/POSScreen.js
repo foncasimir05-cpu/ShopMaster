@@ -13,6 +13,9 @@ import { useShop } from '../../context/ShopContext';
 import { useUSBScanner } from '../../hooks/useUSBScanner';
 import { useOffline } from '../../context/OfflineContext';
 import { cacheProducts, getCachedProducts, queueSale } from '../../services/offlineQueue';
+import { getItem, setItem, removeItem } from '../../services/storage';
+
+const CART_KEY = 'shopmaster_cart';
 import { printReceipt } from '../../services/receiptPrinter';
 import CartItem from './CartItem';
 import PaymentModal from './PaymentModal';
@@ -109,6 +112,19 @@ export default function POSScreen({ navigation }) {
   }, []);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // Restore persisted cart on mount — survives app crashes mid-sale
+  useEffect(() => {
+    getItem(CART_KEY).then(saved => {
+      if (saved) { try { setCart(JSON.parse(saved)); } catch {} }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist cart to storage on every change
+  useEffect(() => {
+    setItem(CART_KEY, JSON.stringify(cart));
+  }, [cart]);
 
   // Auto-add when the search narrows to exactly 1 product and looks like a barcode
   // (no spaces, ≥ 5 chars). Covers scanners that don't append Enter, or slow Enter timing.
@@ -327,6 +343,7 @@ export default function POSScreen({ navigation }) {
 
   const startNewSale = () => {
     setCart([]);
+    removeItem(CART_KEY);
     setDiscount('');
     setPaymentMethod('cash');
     setShowPayment(false);

@@ -24,6 +24,7 @@ const promotionsRoutes = require('./routes/promotions');
 const { router: expensesRoutes } = require('./routes/expenses');
 const eventsRoutes = require('./routes/events');
 const syncRoutes = require('./services/sync');
+const pushTokensRoutes = require('./routes/pushTokens');
 const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
@@ -78,6 +79,7 @@ app.use('/api/v1/promotions', authenticateToken, promotionsRoutes);
 app.use('/api/v1/expenses', authenticateToken, expensesRoutes);
 app.use('/api/v1/events', authenticateToken, eventsRoutes);
 app.use('/api/v1/sync', authenticateToken, syncRoutes);
+app.use('/api/v1/push-tokens', authenticateToken, pushTokensRoutes);
 
 // Global error handler — structured response with correlation ID
 app.use((err, req, res, _next) => {

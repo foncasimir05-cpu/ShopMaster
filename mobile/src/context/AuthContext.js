@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { getItem, setItem, removeItem } from '../services/storage';
 import api from '../services/api';
@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  const login = async ({ accessToken: token, refreshToken, user: userInfo }) => {
+  const login = useCallback(async ({ accessToken: token, refreshToken, user: userInfo }) => {
     await Promise.all([
       setItem('auth_token', token),
       setItem('refresh_token', refreshToken),
@@ -53,11 +53,9 @@ export function AuthProvider({ children }) {
     ]);
     setAccessToken(token);
     setUser(userInfo);
-  };
+  }, []);
 
-  const logout = async () => {
-    // Tell the server to invalidate the refresh token.
-    // Fire-and-forget: local logout succeeds even if the network is down.
+  const logout = useCallback(async () => {
     try {
       const refreshToken = await getItem('refresh_token');
       if (refreshToken) {
@@ -76,14 +74,14 @@ export function AuthProvider({ children }) {
     setUser(null);
     setIsViewingSubShop(false);
     setParentUser(null);
-  };
+  }, []);
 
-  const updateToken = async newToken => {
+  const updateToken = useCallback(async (newToken) => {
     await setItem('auth_token', newToken);
     setAccessToken(newToken);
-  };
+  }, []);
 
-  const switchToSubShop = async ({ accessToken: subToken, shopName, shopId }) => {
+  const switchToSubShop = useCallback(async ({ accessToken: subToken, shopName, shopId }) => {
     const currentToken = await getItem('auth_token');
     const currentUser = await getItem('user');
     await Promise.all([
@@ -96,9 +94,9 @@ export function AuthProvider({ children }) {
     setUser({ ...user, shopId, shopName });
     setAccessToken(subToken);
     setIsViewingSubShop(true);
-  };
+  }, [user]);
 
-  const switchBackToParent = async () => {
+  const switchBackToParent = useCallback(async () => {
     const parentToken = await getItem('parent_auth_token');
     const parentUserJson = await getItem('parent_user');
     if (!parentToken || !parentUserJson) return;
@@ -113,15 +111,18 @@ export function AuthProvider({ children }) {
     setUser(restoredUser);
     setParentUser(null);
     setIsViewingSubShop(false);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    accessToken, user, loading,
+    isViewingSubShop, parentUser,
+    login, logout, updateToken,
+    switchToSubShop, switchBackToParent,
+  }), [accessToken, user, loading, isViewingSubShop, parentUser,
+      login, logout, updateToken, switchToSubShop, switchBackToParent]);
 
   return (
-    <AuthContext.Provider value={{
-      accessToken, user, loading,
-      isViewingSubShop, parentUser,
-      login, logout, updateToken,
-      switchToSubShop, switchBackToParent,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

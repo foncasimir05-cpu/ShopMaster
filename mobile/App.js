@@ -1,5 +1,6 @@
 import './src/i18n'; // must be first — initialises i18next before any screen renders
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,6 +9,9 @@ import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'rea
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { registerPushToken } from './src/services/api';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ShopProvider } from './src/context/ShopContext';
@@ -71,6 +75,29 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="Premium" component={PremiumScreen} />
     </SettingsStack.Navigator>
   );
+}
+
+// Registers for Expo push notifications and sends the token to the server.
+// Runs once after the user is authenticated. Silent on simulator or permission denial.
+function PushRegistration() {
+  const { accessToken } = useAuth();
+  useEffect(() => {
+    if (!accessToken || Platform.OS === 'web') return;
+    (async () => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        const finalStatus = status !== 'granted'
+          ? (await Notifications.requestPermissionsAsync()).status
+          : status;
+        if (finalStatus !== 'granted') return;
+
+        const projectId = 'bdbc962f-b11c-4ba7-92f3-d14ae53cc895';
+        const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+        if (token) await registerPushToken(token);
+      } catch {}
+    })();
+  }, [accessToken]);
+  return null;
 }
 
 function OfflineBanner() {
@@ -192,19 +219,22 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <ShopProvider>
-        <StockAlertProvider>
-          <OfflineProvider>
-            <SubShopBanner />
-            <OfflineBanner />
-            <RootNavigator />
-            <StatusBar style="auto" />
-          </OfflineProvider>
-        </StockAlertProvider>
-        </ShopProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <ShopProvider>
+            <StockAlertProvider>
+              <OfflineProvider>
+                <PushRegistration />
+                <SubShopBanner />
+                <OfflineBanner />
+                <RootNavigator />
+                <StatusBar style="auto" />
+              </OfflineProvider>
+            </StockAlertProvider>
+          </ShopProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

@@ -37,17 +37,21 @@ export async function queueOperation(type, data) {
 // Convenience alias — existing callers in POSScreen stay unchanged
 export const queueSale = (data) => queueOperation('sale', data);
 
+// Pure normalisation — exported for unit tests and reuse
+export function normalizeOp(op) {
+  return {
+    clientId: op.clientId ?? op.localId,
+    type:     op.type ?? 'sale',
+    data:     op.data,
+    queuedAt: op.queuedAt,
+  };
+}
+
 export async function getPendingOperations() {
   try {
     const raw = await getItem(QUEUE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw).map(op => ({
-      // Normalise old format ({ localId, data }) to new format
-      clientId: op.clientId ?? op.localId,
-      type:     op.type ?? 'sale',
-      data:     op.data,
-      queuedAt: op.queuedAt,
-    }));
+    return JSON.parse(raw).map(normalizeOp);
   } catch { return []; }
 }
 

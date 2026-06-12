@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AppState } from 'react-native';
 import { getPendingOperations, removeOperation, getPendingCount, cacheProducts, getCachedProducts } from '../services/offlineQueue';
 import { getItem, setItem } from '../services/storage';
@@ -96,8 +96,13 @@ export function OfflineProvider({ children }) {
     return () => { clearInterval(interval); sub.remove(); };
   }, [ping, refreshCount]);
 
+  const value = useMemo(
+    () => ({ isOnline, pendingCount, sync, refreshCount }),
+    [isOnline, pendingCount, sync, refreshCount]
+  );
+
   return (
-    <OfflineContext.Provider value={{ isOnline, pendingCount, sync, refreshCount }}>
+    <OfflineContext.Provider value={value}>
       {children}
     </OfflineContext.Provider>
   );

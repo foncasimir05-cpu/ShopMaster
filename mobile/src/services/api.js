@@ -186,4 +186,8 @@ export const sendReceiptEmail = (saleId, email) => api.post(`/sales/${saleId}/se
 export const syncBatch = (operations) => api.post('/sync/batch', { operations }).then(r => r.data);
 export const syncPull  = (since)      => api.get('/sync/pull', { params: { since } }).then(r => r.data);
 
+// Push notifications
+export const registerPushToken   = (token) => api.post('/push-tokens', { token }).then(r => r.data);
+export const unregisterPushToken = (token) => api.delete('/push-tokens', { data: { token } }).then(r => r.data);
+
 export default api;
