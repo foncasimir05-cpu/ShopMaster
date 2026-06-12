@@ -235,15 +235,13 @@ export default function SettingsScreen() {
         )
       )}
 
-      {user?.role === 'admin' && (
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => Alert.alert(
-          t('settings.logoutTitle'),
-          t('settings.logoutConfirm'),
-          [{ text: t('common.cancel'), style: 'cancel' }, { text: t('settings.logout'), style: 'destructive', onPress: logout }]
-        )}>
-          <Text style={styles.logoutBtnText}>{t('settings.logout')}</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={styles.logoutBtn} onPress={() => Alert.alert(
+        t('settings.logoutTitle'),
+        t('settings.logoutConfirm'),
+        [{ text: t('common.cancel'), style: 'cancel' }, { text: t('settings.logout'), style: 'destructive', onPress: logout }]
+      )}>
+        <Text style={styles.logoutBtnText}>{t('settings.logout')}</Text>
+      </TouchableOpacity>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       {saved ? <Text style={styles.savedText}>{t('settings.saved')}</Text> : null}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { getItem, setItem, removeItem } from '../services/storage';
+import api from '../services/api';
 
 const isTokenExpired = (token) => {
   try {
@@ -55,6 +56,15 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    // Tell the server to invalidate the refresh token.
+    // Fire-and-forget: local logout succeeds even if the network is down.
+    try {
+      const refreshToken = await getItem('refresh_token');
+      if (refreshToken) {
+        api.post('/auth/logout', { refreshToken }).catch(() => {});
+      }
+    } catch {}
+
     await Promise.all([
       removeItem('auth_token'),
       removeItem('refresh_token'),
