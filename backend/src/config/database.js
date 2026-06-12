@@ -13,28 +13,34 @@ function getDb() {
 async function initDb() {
   const SQL = await initSqlJs();
 
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
   if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(fileBuffer);
+    db = new SQL.Database(fs.readFileSync(DB_PATH));
   } else {
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     db = new SQL.Database();
   }
 
   db.run('PRAGMA foreign_keys = ON');
-
   db._inTransaction = false;
+
+  // Atomic write: write to .tmp then rename so a crash during save never corrupts the live file
   db._save = () => {
     const data = db.export();
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DB_PATH, Buffer.from(data));
+    const tmp = DB_PATH + '.tmp';
+    fs.writeFileSync(tmp, Buffer.from(data));
+    fs.renameSync(tmp, DB_PATH);
   };
 
   createTables();
   console.warn('Database initialised at', DB_PATH);
   return db;
+}
+
+// Run a single DDL statement, silently ignoring errors (used for idempotent migrations)
+function migrate(sql) {
+  try { db.run(sql); } catch {}
 }
 
 function createTables() {
@@ -112,17 +118,17 @@ function createTables() {
     );
 
     CREATE TABLE IF NOT EXISTS day_closures (
-      id           TEXT PRIMARY KEY,
-      tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-      date         TEXT NOT NULL,
-      total_sales  INTEGER NOT NULL DEFAULT 0,
+      id            TEXT PRIMARY KEY,
+      tenant_id     TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      date          TEXT NOT NULL,
+      total_sales   INTEGER NOT NULL DEFAULT 0,
       total_revenue REAL NOT NULL DEFAULT 0,
       cash_expected REAL NOT NULL DEFAULT 0,
-      actual_cash  REAL NOT NULL DEFAULT 0,
-      difference   REAL NOT NULL DEFAULT 0,
-      notes        TEXT,
-      closed_by    TEXT NOT NULL REFERENCES users(id),
-      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+      actual_cash   REAL NOT NULL DEFAULT 0,
+      difference    REAL NOT NULL DEFAULT 0,
+      notes         TEXT,
+      closed_by     TEXT NOT NULL REFERENCES users(id),
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -146,22 +152,7 @@ function createTables() {
       receipt_footer  TEXT NOT NULL DEFAULT '',
       updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
 
-  // Idempotent migrations for existing databases
-  try { db.run("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"); } catch {}
-  try { db.run("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'"); } catch {}
-  try { db.run("ALTER TABLE tenants ADD COLUMN parent_tenant_id TEXT"); } catch {}
-  try { db.run("ALTER TABLE tenants ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_plan TEXT"); } catch {}
-  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_expires_at TEXT"); } catch {}
-  try { db.run("ALTER TABLE tenants ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'free'"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN security_question TEXT"); } catch {}
-  try { db.run("ALTER TABLE users ADD COLUMN security_answer TEXT"); } catch {}
-  try { db.run("ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0"); } catch {}
-
-  db.exec(`
     CREATE TABLE IF NOT EXISTS suppliers (
       id         TEXT PRIMARY KEY,
       tenant_id  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -209,14 +200,14 @@ function createTables() {
     );
 
     CREATE TABLE IF NOT EXISTS payments (
-      id                TEXT PRIMARY KEY,
-      tenant_id         TEXT NOT NULL,
-      campay_reference  TEXT,
+      id                 TEXT PRIMARY KEY,
+      tenant_id          TEXT NOT NULL,
+      campay_reference   TEXT,
       external_reference TEXT,
-      amount            INTEGER NOT NULL,
-      plan              TEXT NOT NULL,
-      status            TEXT NOT NULL DEFAULT 'pending',
-      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      amount             INTEGER NOT NULL,
+      plan               TEXT NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'pending',
+      created_at         TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS customers (
@@ -246,19 +237,7 @@ function createTables() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
 
-  try { db.run("ALTER TABLE sales ADD COLUMN customer_id TEXT"); } catch {}
-  try { db.run("ALTER TABLE products ADD COLUMN has_variants INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE sale_items ADD COLUMN variant_id TEXT"); } catch {}
-  try { db.run("ALTER TABLE sale_items ADD COLUMN cost_price REAL NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE sales ADD COLUMN promo_id TEXT"); } catch {}
-  // Soft-delete: products with sales history cannot be hard-deleted (FK constraint).
-  // Mark them deleted instead so historical records stay intact.
-  try { db.run("ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch {}
-  try { db.run("ALTER TABLE sale_items ADD COLUMN product_name TEXT"); } catch {}
-
-  db.exec(`
     CREATE TABLE IF NOT EXISTS expenses (
       id          TEXT PRIMARY KEY,
       tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -270,6 +249,26 @@ function createTables() {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Idempotent column migrations for databases created before these columns existed
+  migrate("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+  migrate("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1");
+  migrate("ALTER TABLE users ADD COLUMN security_question TEXT");
+  migrate("ALTER TABLE users ADD COLUMN security_answer TEXT");
+  migrate("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'");
+  migrate("ALTER TABLE sales ADD COLUMN customer_id TEXT");
+  migrate("ALTER TABLE sales ADD COLUMN promo_id TEXT");
+  migrate("ALTER TABLE tenants ADD COLUMN parent_tenant_id TEXT");
+  migrate("ALTER TABLE tenants ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0");
+  migrate("ALTER TABLE tenants ADD COLUMN subscription_plan TEXT");
+  migrate("ALTER TABLE tenants ADD COLUMN subscription_expires_at TEXT");
+  migrate("ALTER TABLE tenants ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'free'");
+  migrate("ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0");
+  migrate("ALTER TABLE products ADD COLUMN has_variants INTEGER NOT NULL DEFAULT 0");
+  migrate("ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+  migrate("ALTER TABLE sale_items ADD COLUMN variant_id TEXT");
+  migrate("ALTER TABLE sale_items ADD COLUMN cost_price REAL NOT NULL DEFAULT 0");
+  migrate("ALTER TABLE sale_items ADD COLUMN product_name TEXT");
 }
 
 module.exports = { initDb, getDb };

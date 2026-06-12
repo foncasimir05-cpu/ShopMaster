@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { initDb } = require('./config/database');
 
 const newAuthRoutes = require('./auth/authRoutes');
@@ -24,6 +25,11 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Rate limiting — tighter on auth, generous on everything else
+app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
+app.use('/api/auth',   rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
+app.use(rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
