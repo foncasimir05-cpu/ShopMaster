@@ -57,6 +57,10 @@ api.interceptors.response.use(
   }
 );
 
+// Health
+export const checkHealth = () =>
+  axios.get(`${BASE_ORIGIN}/health`, { timeout: 5000 }).then(r => r.data);
+
 // Auth
 export const register = (shopName, email, password) =>
   api.post('/auth/register', { shopName, email, password }).then(r => r.data);
@@ -128,5 +132,57 @@ export const getStaff = () => api.get('/users').then(r => r.data);
 export const createStaff = data => api.post('/users', data).then(r => r.data);
 export const updateStaff = (id, data) => api.put(`/users/${id}`, data).then(r => r.data);
 export const deactivateStaff = id => api.put(`/users/${id}/deactivate`).then(r => r.data);
+
+// Analytics
+export const getAnalyticsSummary = () => api.get('/analytics/summary').then(r => r.data);
+export const getAnalyticsTrend = (days = 7) => api.get('/analytics/trend', { params: { days } }).then(r => r.data);
+export const getTopProducts = (days = 30) => api.get('/analytics/top-products', { params: { days } }).then(r => r.data);
+export const getPaymentBreakdown = (days = 30) => api.get('/analytics/payment-breakdown', { params: { days } }).then(r => r.data);
+
+// Customers
+export const getCustomers = (params) => api.get('/customers', { params }).then(r => r.data);
+export const getCustomer = (id) => api.get(`/customers/${id}`).then(r => r.data);
+export const createCustomer = (data) => api.post('/customers', data).then(r => r.data);
+export const updateCustomer = (id, data) => api.put(`/customers/${id}`, data).then(r => r.data);
+
+// Product variants
+export const getVariants = (productId) => api.get(`/products/${productId}/variants`).then(r => r.data);
+export const createVariant = (productId, data) => api.post(`/products/${productId}/variants`, data).then(r => r.data);
+export const updateVariant = (productId, variantId, data) => api.put(`/products/${productId}/variants/${variantId}`, data).then(r => r.data);
+export const deleteVariant = (productId, variantId) => api.delete(`/products/${productId}/variants/${variantId}`).then(r => r.data);
+
+// Suppliers
+export const getSuppliers = (params) => api.get('/suppliers', { params }).then(r => r.data);
+export const createSupplier = (data) => api.post('/suppliers', data).then(r => r.data);
+export const updateSupplier = (id, data) => api.put(`/suppliers/${id}`, data).then(r => r.data);
+export const deleteSupplier = (id) => api.delete(`/suppliers/${id}`).then(r => r.data);
+
+// Purchase Orders
+export const getPurchaseOrders = (params) => api.get('/purchase-orders', { params }).then(r => r.data);
+export const getPurchaseOrder = (id) => api.get(`/purchase-orders/${id}`).then(r => r.data);
+export const createPurchaseOrder = (data) => api.post('/purchase-orders', data).then(r => r.data);
+export const receivePurchaseOrder = (id, data) => api.put(`/purchase-orders/${id}/receive`, data).then(r => r.data);
+export const deletePurchaseOrder = (id) => api.delete(`/purchase-orders/${id}`).then(r => r.data);
+
+// Promotions
+export const getPromotions = () => api.get('/promotions').then(r => r.data);
+export const createPromotion = (data) => api.post('/promotions', data).then(r => r.data);
+export const updatePromotion = (id, data) => api.put(`/promotions/${id}`, data).then(r => r.data);
+export const deletePromotion = (id) => api.delete(`/promotions/${id}`).then(r => r.data);
+export const validatePromo = (code, subtotal) => api.post('/promotions/validate', { code, subtotal }).then(r => r.data);
+
+// CSV Import / Export
+export const exportProductsCSV = () => api.get('/products/export', { responseType: 'text' }).then(r => r.data);
+export const importProductsCSV = (csv) => api.post('/products/import', { csv }).then(r => r.data);
+
+// Expenses
+export const getExpenses = (params) => api.get('/expenses', { params }).then(r => r.data);
+export const getExpensesSummary = (params) => api.get('/expenses/summary', { params }).then(r => r.data);
+export const createExpense = (data) => api.post('/expenses', data).then(r => r.data);
+export const updateExpense = (id, data) => api.put(`/expenses/${id}`, data).then(r => r.data);
+export const deleteExpense = (id) => api.delete(`/expenses/${id}`).then(r => r.data);
+
+// Email receipt
+export const sendReceiptEmail = (saleId, email) => api.post(`/sales/${saleId}/send-receipt`, { email }).then(r => r.data);
 
 export default api;

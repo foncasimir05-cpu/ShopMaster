@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -10,9 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { formatCurrency } from 'shopmaster-shared';
+import { useTranslation } from 'react-i18next';
+import { useShop } from '../../context/ShopContext';
 
 export default function PaymentModal({ visible, total, paymentMethod, onConfirm, onCancel, loading }) {
+  const { t } = useTranslation();
+  const { formatCurrency } = useShop();
   const [tendered, setTendered] = useState('');
   const tenderedNum = parseFloat(tendered) || 0;
   const change = paymentMethod === 'cash' ? Math.max(0, tenderedNum - total) : 0;
@@ -22,6 +25,25 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
     onConfirm({ tendered: paymentMethod === 'cash' ? tenderedNum : total, change });
   };
 
+  const canChargeRef = useRef(canCharge);
+  const loadingRef = useRef(loading);
+  const handleConfirmRef = useRef(handleConfirm);
+  canChargeRef.current = canCharge;
+  loadingRef.current = loading;
+  handleConfirmRef.current = handleConfirm;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const onKeyDown = e => {
+      if (e.key === 'Enter' && !e.repeat && canChargeRef.current && !loadingRef.current) {
+        e.preventDefault();
+        handleConfirmRef.current();
+      }
+    };
+    if (visible) window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [visible]);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <KeyboardAvoidingView
@@ -29,17 +51,17 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.card}>
-          <Text style={styles.title}>Confirm Payment</Text>
+          <Text style={styles.title}>{t('pos.payment.title')}</Text>
           <Text style={styles.method}>
-            {paymentMethod === 'cash' ? '💵 Cash' : paymentMethod === 'card' ? '💳 Card' : '📱 Mobile Money'}
+            {paymentMethod === 'cash' ? `💵 ${t('pos.cash')}` : paymentMethod === 'card' ? `💳 ${t('pos.card')}` : `📱 ${t('pos.mobileMoney')}`}
           </Text>
 
-          <Text style={styles.totalLabel}>Amount Due</Text>
+          <Text style={styles.totalLabel}>{t('pos.payment.amountDue')}</Text>
           <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
 
           {paymentMethod === 'cash' && (
             <>
-              <Text style={styles.inputLabel}>Cash Tendered</Text>
+              <Text style={styles.inputLabel}>{t('pos.payment.cashTendered')}</Text>
               <TextInput
                 style={styles.input}
                 value={tendered}
@@ -50,7 +72,7 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
               />
               {tenderedNum > 0 && (
                 <View style={styles.changeRow}>
-                  <Text style={styles.changeLabel}>Change</Text>
+                  <Text style={styles.changeLabel}>{t('pos.payment.change')}</Text>
                   <Text style={[styles.changeValue, change < 0 && styles.changeNeg]}>
                     {formatCurrency(change)}
                   </Text>
@@ -61,7 +83,7 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.confirmBtn, !canCharge && styles.confirmBtnDisabled]}
@@ -72,7 +94,7 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.confirmText}>
-                  {paymentMethod === 'cash' ? 'Collect Cash' : 'Confirm Payment'}
+                  {paymentMethod === 'cash' ? t('pos.payment.collectCash') : t('pos.payment.confirm')}
                 </Text>
               )}
             </TouchableOpacity>

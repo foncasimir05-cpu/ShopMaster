@@ -11,6 +11,12 @@ const { settingsRouter, usersRouter } = require('./routes/settings');
 const subShopsRoutes = require('./routes/subShops');
 const dayCloseRoutes = require('./routes/dayClose');
 const premiumRoutes = require('./routes/premium');
+const analyticsRoutes = require('./routes/analytics');
+const customersRoutes = require('./routes/customers');
+const suppliersRoutes = require('./routes/suppliers');
+const purchaseOrdersRoutes = require('./routes/purchaseOrders');
+const promotionsRoutes = require('./routes/promotions');
+const { router: expensesRoutes } = require('./routes/expenses');
 const { authenticateToken } = require('./middleware/authenticateToken');
 
 const app = express();
@@ -34,6 +40,12 @@ app.use('/api/v1/day-close', authenticateToken, dayCloseRoutes);
 app.use('/api/v1/premium/webhook', premiumRoutes); // webhook has no auth
 app.use('/api/v1/premium', authenticateToken, premiumRoutes);
 app.use('/api/v1/users', authenticateToken, usersRouter);
+app.use('/api/v1/analytics', authenticateToken, analyticsRoutes);
+app.use('/api/v1/customers', authenticateToken, customersRoutes);
+app.use('/api/v1/suppliers', authenticateToken, suppliersRoutes);
+app.use('/api/v1/purchase-orders', authenticateToken, purchaseOrdersRoutes);
+app.use('/api/v1/promotions', authenticateToken, promotionsRoutes);
+app.use('/api/v1/expenses', authenticateToken, expensesRoutes);
 
 // Global error handler
 app.use((err, _req, res, _next) => {

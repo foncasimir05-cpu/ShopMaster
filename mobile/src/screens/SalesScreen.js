@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import * as api from '../services/api';
 import BarcodeScanner from '../components/BarcodeScanner';
-import { computeCartTotals, formatCurrency } from 'shopmaster-shared';
+import { computeCartTotals } from 'shopmaster-shared';
+import { useShop } from '../context/ShopContext';
 
 export default function SalesScreen() {
+  const { formatCurrency } = useShop();
   const [tab, setTab] = useState('pos'); // 'pos' | 'history'
   const [sales, setSales] = useState([]);
   const [cart, setCart] = useState([]);

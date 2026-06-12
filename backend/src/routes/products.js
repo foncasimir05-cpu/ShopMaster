@@ -12,7 +12,7 @@ router.get('/', (req, res, next) => {
     const db = getDb();
     const offset = (Number(page) - 1) * Number(limit);
 
-    let query = 'SELECT * FROM products WHERE tenant_id = ?';
+    let query = 'SELECT * FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)';
     const params = [req.shopId];
 
     if (search) {
@@ -39,9 +39,95 @@ router.get('/low-stock', (req, res, next) => {
   try {
     const db = getDb();
     res.json(dbAll(db,
-      'SELECT * FROM products WHERE tenant_id = ? AND min_stock > 0 AND stock <= min_stock ORDER BY stock ASC',
+      'SELECT * FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL) AND min_stock > 0 AND stock <= min_stock ORDER BY stock ASC',
       [req.shopId]
     ));
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/products/export  — CSV download (must be before /:id)
+router.get('/export', (req, res, next) => {
+  try {
+    const db = getDb();
+    const products = dbAll(db,
+      'SELECT name, sku, barcode, price, cost, stock, category, min_stock FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY name ASC',
+      [req.shopId]
+    );
+    const header = 'name,sku,barcode,price,cost,stock,category,min_stock\n';
+    const rows = products.map(p =>
+      [p.name, p.sku ?? '', p.barcode ?? '', p.price, p.cost, p.stock, p.category ?? '', p.min_stock]
+        .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    ).join('\n');
+    res.set({ 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="products.csv"' });
+    res.send(header + rows);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/products/import  — CSV body: { csv: "..." }  (must be before /:id)
+router.post('/import', (req, res, next) => {
+  try {
+    const { csv } = req.body;
+    if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'csv string required' });
+    const db = getDb();
+    const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
+
+    const parseRow = (line) => {
+      const result = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = !inQ;
+        } else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+        else cur += line[i];
+      }
+      result.push(cur);
+      return result;
+    };
+
+    const headers = parseRow(lines[0]).map(h => h.toLowerCase().trim());
+    const idx = (name) => headers.indexOf(name);
+
+    let created = 0, updated = 0, errors = [];
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const cols = parseRow(lines[i]);
+        const name = cols[idx('name')]?.trim();
+        if (!name) { errors.push(`Row ${i + 1}: name is required`); continue; }
+        const sku = cols[idx('sku')]?.trim() || null;
+        const barcode = cols[idx('barcode')]?.trim() || null;
+        const price = parseFloat(cols[idx('price')]) || 0;
+        const cost = parseFloat(cols[idx('cost')]) || 0;
+        const stock = parseInt(cols[idx('stock')], 10) || 0;
+        const category = cols[idx('category')]?.trim() || null;
+        const min_stock = parseInt(cols[idx('min_stock')], 10) || 0;
+
+        const existing = sku
+          ? dbGet(db, 'SELECT id FROM products WHERE sku = ? AND tenant_id = ?', [sku, req.shopId])
+          : null;
+
+        if (existing) {
+          dbRun(db,
+            `UPDATE products SET name=?, barcode=?, price=?, cost=?, stock=?, category=?, min_stock=?, updated_at=datetime('now')
+             WHERE id=?`,
+            [name, barcode, price, cost, stock, category, min_stock, existing.id]
+          );
+          updated++;
+        } else {
+          dbRun(db,
+            'INSERT INTO products (id, tenant_id, name, sku, barcode, price, cost, stock, category, min_stock) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            [uuidv4(), req.shopId, name, sku, barcode, price, cost, stock, category, min_stock]
+          );
+          created++;
+        }
+      } catch (rowErr) {
+        errors.push(`Row ${i + 1}: ${rowErr.message}`);
+      }
+    }
+    db._save();
+    res.json({ created, updated, errors, total: created + updated });
   } catch (err) { next(err); }
 });
 
@@ -50,7 +136,7 @@ router.get('/:id', (req, res, next) => {
   try {
     const db = getDb();
     const product = dbGet(db,
-      'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
+      'SELECT * FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)',
       [req.params.id, req.shopId]
     );
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -105,12 +191,12 @@ router.put('/:id', (req, res, next) => {
   }
 });
 
-// DELETE /api/v1/products/:id
+// DELETE /api/v1/products/:id  (soft-delete — preserves historical sale records)
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getDb();
     const info = dbRun(db,
-      'DELETE FROM products WHERE id = ? AND tenant_id = ?',
+      'UPDATE products SET is_deleted = 1, updated_at = datetime(\'now\') WHERE id = ? AND tenant_id = ?',
       [req.params.id, req.shopId]
     );
     if (info.changes === 0) return res.status(404).json({ error: 'Product not found' });
@@ -118,6 +204,82 @@ router.delete('/:id', (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ── Variant routes ─────────────────────────────────────────────────────────────
+
+// GET /api/v1/products/:id/variants
+router.get('/:id/variants', (req, res, next) => {
+  try {
+    const db = getDb();
+    const product = dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(dbAll(db, 'SELECT * FROM product_variants WHERE product_id = ? AND tenant_id = ? ORDER BY name ASC', [req.params.id, req.shopId]));
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/products/:id/variants
+router.post('/:id/variants', (req, res, next) => {
+  try {
+    const db = getDb();
+    const product = dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    const { name, sku, barcode, price, cost, stock, attributes } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const id = uuidv4();
+    dbRun(db,
+      `INSERT INTO product_variants (id, product_id, tenant_id, name, sku, barcode, price, cost, stock, attributes)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [id, req.params.id, req.shopId, name, sku || null, barcode || null,
+       price ?? 0, cost ?? 0, stock ?? 0, attributes ? JSON.stringify(attributes) : '{}']
+    );
+    // Mark parent as having variants
+    dbRun(db, "UPDATE products SET has_variants=1, updated_at=datetime('now') WHERE id=?", [req.params.id]);
+    db._save();
+    res.status(201).json(dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [id]));
+  } catch (err) { next(err); }
+});
+
+// PUT /api/v1/products/:id/variants/:variantId
+router.put('/:id/variants/:variantId', (req, res, next) => {
+  try {
+    const db = getDb();
+    const variant = dbGet(db, 'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
+      [req.params.variantId, req.params.id, req.shopId]);
+    if (!variant) return res.status(404).json({ error: 'Variant not found' });
+
+    const { name, sku, barcode, price, cost, stock } = req.body;
+    dbRun(db,
+      `UPDATE product_variants SET name=COALESCE(?,name), sku=COALESCE(?,sku), barcode=COALESCE(?,barcode),
+       price=COALESCE(?,price), cost=COALESCE(?,cost), stock=COALESCE(?,stock), updated_at=datetime('now')
+       WHERE id=?`,
+      [name || null, sku || null, barcode || null, price ?? null, cost ?? null, stock ?? null, req.params.variantId]
+    );
+    db._save();
+    res.json(dbGet(db, 'SELECT * FROM product_variants WHERE id = ?', [req.params.variantId]));
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/v1/products/:id/variants/:variantId
+router.delete('/:id/variants/:variantId', (req, res, next) => {
+  try {
+    const db = getDb();
+    const info = dbRun(db,
+      'DELETE FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
+      [req.params.variantId, req.params.id, req.shopId]
+    );
+    if (info.changes === 0) return res.status(404).json({ error: 'Variant not found' });
+
+    // If no more variants, unmark parent
+    const remaining = dbGet(db, 'SELECT COUNT(*) as cnt FROM product_variants WHERE product_id = ?', [req.params.id]);
+    if (!remaining?.cnt) {
+      dbRun(db, "UPDATE products SET has_variants=0, updated_at=datetime('now') WHERE id=?", [req.params.id]);
+    }
+    db._save();
+    res.json({ deleted: true });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

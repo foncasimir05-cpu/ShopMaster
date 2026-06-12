@@ -3,14 +3,15 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { getStaff, createStaff, updateStaff, deactivateStaff } from '../../services/api';
 
 const ROLES = ['admin', 'manager', 'cashier'];
-const ROLE_LABEL = { admin: 'Owner', manager: 'Manager', cashier: 'Cashier' };
 const ROLE_COLOR = { admin: '#1a2e4a', manager: '#0e9f6e', cashier: '#f59e0b' };
 
 export default function UserManagementScreen() {
+  const { t } = useTranslation();
   const { user: me } = useAuth();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,19 +19,18 @@ export default function UserManagementScreen() {
   const [expandedId, setExpandedId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  // Add-staff form
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('cashier');
   const [addError, setAddError] = useState('');
-  const [adding, setAdding] = useState('');
+  const [adding, setAdding] = useState(false);
 
   const load = () => {
     setLoading(true);
     getStaff()
       .then(setStaff)
-      .catch(() => setError('Failed to load staff'))
+      .catch(() => setError(t('users.errors.loadFailed')))
       .finally(() => setLoading(false));
   };
 
@@ -38,7 +38,7 @@ export default function UserManagementScreen() {
 
   const handleAdd = async () => {
     if (!newName.trim() || !newEmail.trim() || !newPassword) {
-      setAddError('Name, email and password are required');
+      setAddError(t('users.errors.requiredFields'));
       return;
     }
     setAdding(true);
@@ -49,7 +49,7 @@ export default function UserManagementScreen() {
       setShowAdd(false);
       load();
     } catch (err) {
-      setAddError(err.response?.data?.error ?? 'Failed to create staff');
+      setAddError(err.response?.data?.error ?? t('users.errors.createFailed'));
     } finally {
       setAdding(false);
     }
@@ -60,7 +60,7 @@ export default function UserManagementScreen() {
       await updateStaff(member.id, { name: member.name, role });
       load();
     } catch {
-      setError('Failed to update role');
+      setError(t('users.errors.updateRoleFailed'));
     }
   };
 
@@ -70,7 +70,7 @@ export default function UserManagementScreen() {
       setExpandedId(null);
       load();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Failed to deactivate');
+      setError(err.response?.data?.error ?? t('users.errors.deactivateFailed'));
     }
   };
 
@@ -78,7 +78,7 @@ export default function UserManagementScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Manage Staff</Text>
+      <Text style={styles.heading}>{t('users.manageStaff')}</Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -93,14 +93,14 @@ export default function UserManagementScreen() {
               <Text style={styles.memberEmail}>{member.email}</Text>
             </View>
             <View style={[styles.roleBadge, { backgroundColor: ROLE_COLOR[member.role] ?? '#6b7280' }]}>
-              <Text style={styles.roleBadgeText}>{ROLE_LABEL[member.role] ?? member.role}</Text>
+              <Text style={styles.roleBadgeText}>{t(`users.roles.${member.role}`, { defaultValue: member.role })}</Text>
             </View>
-            {!member.is_active && <Text style={styles.inactiveTag}>Inactive</Text>}
+            {!member.is_active && <Text style={styles.inactiveTag}>{t('users.inactive')}</Text>}
           </TouchableOpacity>
 
           {expandedId === member.id && member.is_active && (
             <View style={styles.expandedPanel}>
-              <Text style={styles.expandedLabel}>Change Role</Text>
+              <Text style={styles.expandedLabel}>{t('users.changeRole')}</Text>
               <View style={styles.roleRow}>
                 {ROLES.map(r => (
                   <TouchableOpacity
@@ -109,14 +109,14 @@ export default function UserManagementScreen() {
                     onPress={() => handleRoleChange(member, r)}
                   >
                     <Text style={[styles.roleChipText, member.role === r && styles.roleChipTextActive]}>
-                      {ROLE_LABEL[r]}
+                      {t(`users.roles.${r}`, { defaultValue: r })}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
               {member.id !== me?.id && (
                 <TouchableOpacity style={styles.deactivateBtn} onPress={() => handleDeactivate(member.id)}>
-                  <Text style={styles.deactivateBtnText}>Deactivate Account</Text>
+                  <Text style={styles.deactivateBtnText}>{t('users.deactivate')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -126,16 +126,16 @@ export default function UserManagementScreen() {
 
       {!showAdd ? (
         <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
-          <Text style={styles.addBtnText}>+ Add Staff</Text>
+          <Text style={styles.addBtnText}>+ {t('users.addStaff')}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.addForm}>
-          <Text style={styles.addFormTitle}>New Staff Member</Text>
-          <Field label="Full Name" value={newName} onChangeText={setNewName} placeholder="Jane Smith" />
-          <Field label="Email" value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" placeholder="jane@example.com" />
-          <Field label="Password" value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Min. 8 characters" />
+          <Text style={styles.addFormTitle}>{t('users.newStaffMember')}</Text>
+          <Field label={t('users.fields.name')} value={newName} onChangeText={setNewName} placeholder="Jane Smith" />
+          <Field label={t('users.fields.email')} value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" placeholder="jane@example.com" />
+          <Field label={t('users.fields.password')} value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Min. 8 characters" />
 
-          <Text style={styles.label}>Role</Text>
+          <Text style={styles.label}>{t('users.fields.role')}</Text>
           <View style={styles.roleRow}>
             {ROLES.map(r => (
               <TouchableOpacity
@@ -144,7 +144,7 @@ export default function UserManagementScreen() {
                 onPress={() => setNewRole(r)}
               >
                 <Text style={[styles.roleChipText, newRole === r && styles.roleChipTextActive]}>
-                  {ROLE_LABEL[r]}
+                  {t(`users.roles.${r}`, { defaultValue: r })}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -154,10 +154,10 @@ export default function UserManagementScreen() {
 
           <View style={styles.formActions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowAdd(false); setAddError(''); }}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, adding && styles.saveBtnDisabled]} onPress={handleAdd} disabled={!!adding}>
-              <Text style={styles.saveBtnText}>{adding ? 'Adding…' : 'Add Staff'}</Text>
+            <TouchableOpacity style={[styles.saveBtn, adding && styles.saveBtnDisabled]} onPress={handleAdd} disabled={adding}>
+              <Text style={styles.saveBtnText}>{adding ? t('users.adding') : t('users.addStaff')}</Text>
             </TouchableOpacity>
           </View>
         </View>

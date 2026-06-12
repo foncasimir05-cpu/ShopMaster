@@ -10,9 +10,11 @@ import {
   TextInput,
   Switch,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 
 export default function InventoryScreen() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lowStockOnly, setLowStockOnly] = useState(false);
@@ -33,18 +35,18 @@ export default function InventoryScreen() {
   const promptAdjust = item => {
     let deltaText = '';
     Alert.prompt(
-      'Adjust Stock',
-      `Current stock: ${item.stock}\nEnter delta (e.g. +10 or -5):`,
+      t('inventory.adjustStock'),
+      t('inventory.currentStock', { stock: item.stock }) + '\n' + t('inventory.deltaHint'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Apply',
+          text: t('inventory.apply'),
           onPress: async value => {
             const delta = parseInt(value, 10);
-            if (isNaN(delta)) { Alert.alert('Invalid', 'Enter a valid number'); return; }
+            if (isNaN(delta)) { Alert.alert(t('common.error'), t('inventory.errors.invalidDelta')); return; }
             try {
               const result = await api.adjustStock(item.id, delta, 'Manual adjustment');
-              Alert.alert('Updated', `Stock: ${result.previousStock} → ${result.newStock}`);
+              Alert.alert(t('inventory.updated'), t('inventory.stockUpdated', { prev: result.previousStock, new: result.newStock }));
               fetchInventory();
             } catch (err) {
               Alert.alert('Error', err.response?.data?.error ?? err.message);
@@ -58,10 +60,10 @@ export default function InventoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Inventory</Text>
+      <Text style={styles.title}>{t('inventory.title')}</Text>
 
       <View style={styles.filterRow}>
-        <Text style={styles.filterLabel}>Low stock only</Text>
+        <Text style={styles.filterLabel}>{t('inventory.lowStockOnly')}</Text>
         <Switch value={lowStockOnly} onValueChange={v => setLowStockOnly(v)} />
       </View>
 
@@ -75,17 +77,17 @@ export default function InventoryScreen() {
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.sub}>{item.sku ?? 'No SKU'} · {item.category ?? 'Uncategorised'}</Text>
+                <Text style={styles.sub}>{item.sku ?? t('products.noSku')} · {item.category ?? '—'}</Text>
               </View>
               <View style={styles.stockBadge(item.stock)}>
                 <Text style={styles.stockText}>{item.stock}</Text>
               </View>
               <TouchableOpacity style={styles.adjustBtn} onPress={() => promptAdjust(item)}>
-                <Text style={styles.adjustBtnText}>Adjust</Text>
+                <Text style={styles.adjustBtnText}>{t('inventory.adjustStock')}</Text>
               </TouchableOpacity>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No inventory items.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('inventory.noItems')}</Text>}
         />
       )}
     </View>

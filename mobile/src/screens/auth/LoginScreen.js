@@ -3,12 +3,14 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_ORIGIN } from '../../services/api';
 
 const API = BASE_ORIGIN;
 
 export default function LoginScreen({ navigation }) {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [shopId, setShopId] = useState('');
   const [email, setEmail] = useState('');
@@ -18,10 +20,10 @@ export default function LoginScreen({ navigation }) {
 
   const validate = () => {
     const e = {};
-    if (!shopId.trim()) e.shopId = 'Shop ID is required';
-    if (!email.trim()) e.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email';
-    if (!password) e.password = 'Password is required';
+    if (!shopId.trim()) e.shopId = t('auth.login.errors.shopIdRequired');
+    if (!email.trim()) e.email = t('auth.login.errors.emailRequired');
+    else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.login.errors.emailInvalid');
+    if (!password) e.password = t('auth.login.errors.passwordRequired');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -36,10 +38,10 @@ export default function LoginScreen({ navigation }) {
         body: JSON.stringify({ email: email.trim(), password, shopId: shopId.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Login failed');
+      if (!res.ok) throw new Error(data.error ?? t('auth.login.loginFailed'));
       await login(data);
     } catch (err) {
-      Alert.alert('Login failed', err.message);
+      Alert.alert(t('auth.login.loginFailed'), err.message);
     } finally {
       setLoading(false);
     }
@@ -50,33 +52,33 @@ export default function LoginScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>ShopMaster</Text>
-          <Text style={styles.subtitle}>Sign in to your shop</Text>
+          <Text style={styles.subtitle}>{t('auth.login.title')}</Text>
         </View>
 
         <View style={styles.card}>
           <Field
-            label="Shop ID"
+            label={t('auth.login.shopId')}
             value={shopId}
             onChangeText={v => { setShopId(v); setErrors(e => ({ ...e, shopId: null })); }}
             error={errors.shopId}
-            placeholder="Paste your Shop ID"
+            placeholder={t('auth.login.shopIdPlaceholder')}
             autoCapitalize="none"
           />
           <Field
-            label="Email"
+            label={t('common.email')}
             value={email}
             onChangeText={v => { setEmail(v); setErrors(e => ({ ...e, email: null })); }}
             error={errors.email}
-            placeholder="you@example.com"
+            placeholder={t('auth.login.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
           />
           <Field
-            label="Password"
+            label={t('auth.login.password')}
             value={password}
             onChangeText={v => { setPassword(v); setErrors(e => ({ ...e, password: null })); }}
             error={errors.password}
-            placeholder="••••••••"
+            placeholder={t('auth.login.passwordPlaceholder')}
             secureTextEntry
           />
 
@@ -84,17 +86,21 @@ export default function LoginScreen({ navigation }) {
             <ActivityIndicator size="large" color="#1a56db" style={{ marginTop: 20 }} />
           ) : (
             <TouchableOpacity style={styles.btn} onPress={handleLogin}>
-              <Text style={styles.btnText}>Sign In</Text>
+              <Text style={styles.btnText}>{t('auth.login.signIn')}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('RegisterShop')}>
-          <Text style={styles.linkText}>No shop yet? <Text style={styles.linkBold}>Create one →</Text></Text>
+          <Text style={styles.linkText}>
+            {t('auth.login.noShop')} <Text style={styles.linkBold}>{t('auth.login.createOne')}</Text>
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Forgot')}>
-          <Text style={styles.linkText}>Forgot password or Shop ID? <Text style={styles.linkBold}>Recover account →</Text></Text>
+          <Text style={styles.linkText}>
+            {t('auth.login.forgotLink')} <Text style={styles.linkBold}>{t('auth.login.recoverLink')}</Text>
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

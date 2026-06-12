@@ -34,7 +34,23 @@ router.get('/summary', (req, res, next) => {
       [req.shopId, date]
     );
 
-    res.json({ date, summary, byMethod, existingClosure: existing ?? null });
+    const cogsRow = dbGet(db, `
+      SELECT COALESCE(SUM(si.cost_price * si.quantity),0) as total_cogs
+      FROM sale_items si JOIN sales s ON si.sale_id = s.id
+      WHERE s.tenant_id=? AND date(s.created_at)=? AND s.status='completed'
+    `, [req.shopId, date]);
+    const total_cogs = cogsRow?.total_cogs ?? 0;
+
+    res.json({
+      date,
+      summary: {
+        ...summary,
+        total_cogs,
+        total_profit: Math.round(((summary?.total_revenue ?? 0) - total_cogs) * 100) / 100,
+      },
+      byMethod,
+      existingClosure: existing ?? null,
+    });
   } catch (err) { next(err); }
 });
 

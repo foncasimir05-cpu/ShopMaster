@@ -1,4 +1,6 @@
+import './src/i18n'; // must be first — initialises i18next before any screen renders
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,20 +10,28 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ShopProvider } from './src/context/ShopContext';
 import { StockAlertProvider, useStockAlert } from './src/context/StockAlertContext';
+import { OfflineProvider, useOffline } from './src/context/OfflineContext';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterShopScreen from './src/screens/auth/RegisterShopScreen';
 import ForgotScreen from './src/screens/auth/ForgotScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import CloseOfDayScreen from './src/screens/CloseOfDayScreen';
+import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 import ProductsScreen from './src/screens/ProductsScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import POSScreen from './src/screens/pos/POSScreen';
 import SalesHistoryScreen from './src/screens/sales/SalesHistoryScreen';
+import CustomersScreen from './src/screens/customers/CustomersScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UserManagementScreen from './src/screens/settings/UserManagementScreen';
 import SubShopsScreen from './src/screens/settings/SubShopsScreen';
 import PremiumScreen from './src/screens/settings/PremiumScreen';
+import SuppliersScreen from './src/screens/suppliers/SuppliersScreen';
+import PurchaseOrdersScreen from './src/screens/suppliers/PurchaseOrdersScreen';
+import PromotionsScreen from './src/screens/promotions/PromotionsScreen';
+import ExpensesScreen from './src/screens/expenses/ExpensesScreen';
 
 const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -29,12 +39,13 @@ const SettingsStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
-  Home:         { focused: 'home',     blur: 'home-outline' },
-  Products:     { focused: 'cube',     blur: 'cube-outline' },
-  POS:          { focused: 'cart',     blur: 'cart-outline' },
-  SalesHistory: { focused: 'receipt',  blur: 'receipt-outline' },
-  Inventory:    { focused: 'layers',   blur: 'layers-outline' },
-  SettingsTab:  { focused: 'settings', blur: 'settings-outline' },
+  Home:         { focused: 'home',            blur: 'home-outline' },
+  Products:     { focused: 'cube',            blur: 'cube-outline' },
+  POS:          { focused: 'cart',            blur: 'cart-outline' },
+  SalesHistory: { focused: 'receipt',         blur: 'receipt-outline' },
+  Customers:    { focused: 'people',          blur: 'people-outline' },
+  Inventory:    { focused: 'layers',          blur: 'layers-outline' },
+  SettingsTab:  { focused: 'settings',        blur: 'settings-outline' },
 };
 
 function HomeNavigator() {
@@ -42,6 +53,11 @@ function HomeNavigator() {
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
       <HomeStack.Screen name="CloseOfDay" component={CloseOfDayScreen} />
+      <HomeStack.Screen name="Analytics" component={AnalyticsScreen} />
+      <HomeStack.Screen name="Suppliers" component={SuppliersScreen} />
+      <HomeStack.Screen name="PurchaseOrders" component={PurchaseOrdersScreen} />
+      <HomeStack.Screen name="Promotions" component={PromotionsScreen} />
+      <HomeStack.Screen name="Expenses" component={ExpensesScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -54,6 +70,19 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="SubShops" component={SubShopsScreen} />
       <SettingsStack.Screen name="Premium" component={PremiumScreen} />
     </SettingsStack.Navigator>
+  );
+}
+
+function OfflineBanner() {
+  const { isOnline, pendingCount } = useOffline();
+  if (isOnline) return null;
+  return (
+    <View style={[bannerStyles.bar, { backgroundColor: '#dc2626' }]}>
+      <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
+      <Text style={bannerStyles.text}>
+        Offline{pendingCount > 0 ? ` · ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} queued` : ''}
+      </Text>
+    </View>
   );
 }
 
@@ -84,6 +113,7 @@ const bannerStyles = StyleSheet.create({
 function MainTabs() {
   const { user } = useAuth();
   const { count: lowStockCount } = useStockAlert();
+  const { t } = useTranslation();
   const role = user?.role;
   const isCashier = role === 'cashier';
 
@@ -91,11 +121,23 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#1a2e4a',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopColor: '#e2e8f0',
+          borderTopWidth: 1,
+          paddingTop: 4,
+          height: 60,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 10,
+        },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
         tabBarIcon: ({ focused, color, size }) => {
           const icon = TAB_ICONS[route.name];
-          return <Ionicons name={focused ? icon.focused : icon.blur} size={size} color={color} />;
+          return <Ionicons name={focused ? icon.focused : icon.blur} size={focused ? size + 1 : size} color={color} />;
         },
       })}
     >
@@ -103,16 +145,17 @@ function MainTabs() {
         <Tab.Screen name="POS" component={POSScreen} />
       ) : (
         <>
-          <Tab.Screen name="Home" component={HomeNavigator} />
+          <Tab.Screen name="Home" component={HomeNavigator} options={{ title: t('nav.home') }} />
           <Tab.Screen
             name="Products"
             component={ProductsScreen}
-            options={{ tabBarBadge: lowStockCount > 0 ? lowStockCount : undefined }}
+            options={{ title: t('nav.products'), tabBarBadge: lowStockCount > 0 ? lowStockCount : undefined }}
           />
-          <Tab.Screen name="POS" component={POSScreen} />
-          <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: 'Sales' }} />
-          <Tab.Screen name="Inventory" component={InventoryScreen} />
-          <Tab.Screen name="SettingsTab" component={SettingsNavigator} options={{ title: 'Settings' }} />
+          <Tab.Screen name="POS" component={POSScreen} options={{ title: t('nav.pos') }} />
+          <Tab.Screen name="SalesHistory" component={SalesHistoryScreen} options={{ title: t('nav.sales') }} />
+          <Tab.Screen name="Customers" component={CustomersScreen} options={{ title: t('nav.customers') }} />
+          <Tab.Screen name="Inventory" component={InventoryScreen} options={{ title: t('nav.inventory') }} />
+          <Tab.Screen name="SettingsTab" component={SettingsNavigator} options={{ title: t('nav.settings') }} />
         </>
       )}
     </Tab.Navigator>
@@ -151,11 +194,16 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <ShopProvider>
         <StockAlertProvider>
-          <SubShopBanner />
-          <RootNavigator />
-          <StatusBar style="auto" />
+          <OfflineProvider>
+            <SubShopBanner />
+            <OfflineBanner />
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </OfflineProvider>
         </StockAlertProvider>
+        </ShopProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

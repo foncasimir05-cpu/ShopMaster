@@ -4,19 +4,22 @@ import {
   ScrollView, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { getDayCloseSummary, saveDayClosure, getDayCloseHistory } from '../services/api';
-import { formatCurrency } from 'shopmaster-shared';
+import { useShop } from '../context/ShopContext';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function fmtDate(str) {
+function fmtDate(str, lang) {
   const d = new Date(str + 'T00:00:00');
-  return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(lang, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function CloseOfDayScreen({ navigation }) {
+  const { t, i18n } = useTranslation();
+  const { formatCurrency } = useShop();
   const [date] = useState(todayStr());
   const [summary, setSummary] = useState(null);
   const [byMethod, setByMethod] = useState([]);
@@ -40,7 +43,7 @@ export default function CloseOfDayScreen({ navigation }) {
         setNotes(data.existingClosure.notes ?? '');
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? 'Could not load day summary.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('closeOfDay.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -68,16 +71,18 @@ export default function CloseOfDayScreen({ navigation }) {
 
   const handleSave = async () => {
     if (!actualCash.trim()) {
-      Alert.alert('Required', 'Please enter the actual cash in drawer.');
+      Alert.alert(t('common.error'), t('closeOfDay.required'));
       return;
     }
     if (existingClosure) {
       Alert.alert(
-        'Already Closed',
-        `This day was already closed at ${new Date(existingClosure.created_at).toLocaleTimeString()}. Save a new record anyway?`,
+        t('closeOfDay.alreadyClosed'),
+        t('closeOfDay.alreadyClosedMsg', {
+          time: new Date(existingClosure.created_at).toLocaleTimeString(i18n.language),
+        }),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Save Again', onPress: doSave },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('closeOfDay.saveAgain'), onPress: doSave },
         ]
       );
     } else {
@@ -96,11 +101,11 @@ export default function CloseOfDayScreen({ navigation }) {
         actual_cash: actualCashNum,
         notes: notes.trim() || null,
       });
-      Alert.alert('Saved', 'Day closure recorded successfully.');
+      Alert.alert(t('common.success'), t('closeOfDay.saved'));
       await loadSummary();
       await loadHistory();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? 'Could not save closure.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('closeOfDay.errors.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -113,8 +118,8 @@ export default function CloseOfDayScreen({ navigation }) {
           <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.title}>Close of Day</Text>
-          <Text style={styles.dateText}>{fmtDate(date)}</Text>
+          <Text style={styles.title}>{t('closeOfDay.title')}</Text>
+          <Text style={styles.dateText}>{fmtDate(date, i18n.language)}</Text>
         </View>
       </View>
 
@@ -124,28 +129,28 @@ export default function CloseOfDayScreen({ navigation }) {
         <>
           {/* Sales Summary */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Today's Sales Summary</Text>
-            <Row label="Total Transactions" value={String(summary?.total_sales ?? 0)} />
-            <Row label="Total Revenue" value={formatCurrency(summary?.total_revenue ?? 0)} bold />
+            <Text style={styles.cardTitle}>{t('closeOfDay.todaySalesSummary')}</Text>
+            <Row label={t('closeOfDay.totalTransactions')} value={String(summary?.total_sales ?? 0)} />
+            <Row label={t('closeOfDay.totalRevenue')} value={formatCurrency(summary?.total_revenue ?? 0)} bold />
             <View style={styles.divider} />
             {byMethod.map(m => (
               <Row
                 key={m.payment_method}
-                label={`${capitalize(m.payment_method)} (${m.count} sales)`}
+                label={`${capitalize(m.payment_method)} (${m.count} ${t('sales.countLabel', { count: m.count })})`}
                 value={formatCurrency(m.revenue)}
               />
             ))}
             {byMethod.length === 0 && (
-              <Text style={styles.emptyText}>No sales recorded today.</Text>
+              <Text style={styles.emptyText}>{t('closeOfDay.noSalesToday')}</Text>
             )}
           </View>
 
           {/* Cash Reconciliation */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Cash Reconciliation</Text>
-            <Row label="Expected Cash" value={formatCurrency(cashExpected)} />
+            <Text style={styles.cardTitle}>{t('closeOfDay.cashReconciliation')}</Text>
+            <Row label={t('closeOfDay.expectedCash')} value={formatCurrency(cashExpected)} />
 
-            <Text style={styles.inputLabel}>Actual Cash in Drawer</Text>
+            <Text style={styles.inputLabel}>{t('closeOfDay.actualCash')}</Text>
             <TextInput
               style={styles.input}
               value={actualCash}
@@ -164,19 +169,19 @@ export default function CloseOfDayScreen({ navigation }) {
                 <Text style={[styles.diffText, { color: diffIsGood ? '#065f46' : '#991b1b' }]}>
                   {diffIsGood
                     ? difference === 0
-                      ? 'Cash matches exactly'
-                      : `Over by ${formatCurrency(difference)}`
-                    : `Short by ${formatCurrency(Math.abs(difference))}`}
+                      ? t('closeOfDay.cashMatches')
+                      : t('closeOfDay.overBy', { amount: formatCurrency(difference) })
+                    : t('closeOfDay.shortBy', { amount: formatCurrency(Math.abs(difference)) })}
                 </Text>
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Notes (optional)</Text>
+            <Text style={styles.inputLabel}>{t('closeOfDay.notes')}</Text>
             <TextInput
               style={[styles.input, styles.notesInput]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="e.g. missing receipt #4, counted twice..."
+              placeholder={t('closeOfDay.notesPlaceholder')}
               multiline
             />
 
@@ -184,7 +189,9 @@ export default function CloseOfDayScreen({ navigation }) {
               <View style={styles.alreadyClosedBanner}>
                 <Ionicons name="information-circle-outline" size={15} color="#1d4ed8" />
                 <Text style={styles.alreadyClosedText}>
-                  Previously closed at {new Date(existingClosure.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {t('closeOfDay.previouslyClosed', {
+                    time: new Date(existingClosure.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }),
+                  })}
                 </Text>
               </View>
             )}
@@ -195,25 +202,29 @@ export default function CloseOfDayScreen({ navigation }) {
               <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                 <Ionicons name="lock-closed-outline" size={18} color="#fff" />
                 <Text style={styles.saveBtnText}>
-                  {existingClosure ? 'Save New Record' : 'Close Day & Save'}
+                  {existingClosure ? t('closeOfDay.saveNewRecord') : t('closeOfDay.closeAndSave')}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* History */}
-          <Text style={styles.historyTitle}>Past Closures</Text>
+          <Text style={styles.historyTitle}>{t('closeOfDay.pastClosures')}</Text>
           {historyLoading ? (
             <ActivityIndicator size="small" color="#9ca3af" />
           ) : history.length === 0 ? (
-            <Text style={styles.emptyText}>No past closures yet.</Text>
+            <Text style={styles.emptyText}>{t('closeOfDay.noPastClosures')}</Text>
           ) : (
             history.map(h => (
               <View key={h.id} style={styles.historyRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.historyDate}>{fmtDate(h.date)}</Text>
+                  <Text style={styles.historyDate}>{fmtDate(h.date, i18n.language)}</Text>
                   <Text style={styles.historyMeta}>
-                    {h.total_sales} sales · {formatCurrency(h.total_revenue)} · by {h.closed_by_name}
+                    {t('closeOfDay.historyMeta', {
+                      count: h.total_sales,
+                      revenue: formatCurrency(h.total_revenue),
+                      name: h.closed_by_name,
+                    })}
                   </Text>
                   {h.notes ? <Text style={styles.historyNotes}>{h.notes}</Text> : null}
                 </View>

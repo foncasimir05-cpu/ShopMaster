@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Linking, Alert } from 'react-native';
-import { formatCurrency } from 'shopmaster-shared';
+import { useShop } from '../context/ShopContext';
 import { getInvoiceUrl } from '../services/api';
 
 /**
@@ -8,6 +8,7 @@ import { getInvoiceUrl } from '../services/api';
  * On mobile with expo-print available it opens in-app; on web it navigates to the URL.
  */
 export default function InvoicePreview({ sale, items }) {
+  const { formatCurrency } = useShop();
   const openInvoice = async () => {
     const url = getInvoiceUrl(sale.id);
     if (Platform.OS === 'web') {

@@ -4,15 +4,11 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { forgotPassword, getSecurityQuestion, verifySecurityAnswer, resetPassword } from '../../services/api';
 
-// Steps:
-//  1 — enter email
-//  2a — enter OTP from email + new password
-//  2b — answer security question (email failed)
-//  3 — enter new password (after security question verified)
-
 export default function ForgotScreen({ navigation }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -21,28 +17,24 @@ export default function ForgotScreen({ navigation }) {
   const [selectedShopId, setSelectedShopId] = useState('');
   const [emailSentTo, setEmailSentTo] = useState('');
 
-  // OTP flow
   const [otp, setOtp] = useState('');
 
-  // Security question flow
   const [securityQuestion, setSecurityQuestion] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
   const [fetchingQuestion, setFetchingQuestion] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  // Password reset
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetting, setResetting] = useState(false);
 
-  // --- Step 1: send forgot request ---
   const handleSend = async () => {
-    if (!email.trim()) return Alert.alert('Required', 'Please enter your email address.');
+    if (!email.trim()) return Alert.alert(t('common.error'), t('auth.forgot.errors.emailRequired'));
     setSending(true);
     try {
       const data = await forgotPassword(email.trim().toLowerCase());
       if (!data.shops || data.shops.length === 0) {
-        Alert.alert('Not Found', 'No accounts found for this email address.');
+        Alert.alert(t('common.error'), t('auth.forgot.errors.notFound'));
         return;
       }
       setShops(data.shops);
@@ -50,20 +42,18 @@ export default function ForgotScreen({ navigation }) {
       setEmailSentTo(email.trim().toLowerCase());
 
       if (data.requiresSecurityQuestion) {
-        // Email not delivered — fetch security question for the first shop
         await loadSecurityQuestion(email.trim().toLowerCase(), data.shops[0].shopId);
         setStep('securityQuestion');
       } else {
         setStep('otp');
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? 'Could not reach the server. Check your connection.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('common.connectionError'));
     } finally {
       setSending(false);
     }
   };
 
-  // --- Security question: load question when shop changes ---
   const loadSecurityQuestion = async (emailAddr, shopId) => {
     setFetchingQuestion(true);
     setSecurityQuestion('');
@@ -71,7 +61,7 @@ export default function ForgotScreen({ navigation }) {
       const data = await getSecurityQuestion(emailAddr, shopId);
       setSecurityQuestion(data.question);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? 'Could not load security question.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('common.genericError'));
     } finally {
       setFetchingQuestion(false);
     }
@@ -82,42 +72,39 @@ export default function ForgotScreen({ navigation }) {
     await loadSecurityQuestion(emailSentTo, shopId);
   };
 
-  // --- Security question: verify answer ---
   const handleVerifyAnswer = async () => {
-    if (!securityAnswer.trim()) return Alert.alert('Required', 'Please enter your answer.');
+    if (!securityAnswer.trim()) return Alert.alert(t('common.error'), t('auth.forgot.errors.answerRequired'));
     setVerifying(true);
     try {
       const data = await verifySecurityAnswer(emailSentTo, selectedShopId, securityAnswer.trim());
       setOtp(data.otp);
       setStep('newPassword');
     } catch (err) {
-      Alert.alert('Incorrect', err.response?.data?.error ?? 'Could not verify your answer.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('common.genericError'));
     } finally {
       setVerifying(false);
     }
   };
 
-  // --- OTP flow: proceed to password step ---
   const handleOtpNext = () => {
-    if (!otp.trim()) return Alert.alert('Required', 'Please enter the 6-digit code from your email.');
+    if (!otp.trim()) return Alert.alert(t('common.error'), t('auth.forgot.errors.otpRequired'));
     setStep('newPassword');
   };
 
-  // --- Final step: reset password ---
   const handleReset = async () => {
-    if (!newPassword) return Alert.alert('Required', 'Please enter a new password.');
-    if (newPassword.length < 8) return Alert.alert('Too short', 'Password must be at least 8 characters.');
-    if (newPassword !== confirmPassword) return Alert.alert('Mismatch', 'Passwords do not match.');
+    if (!newPassword) return Alert.alert(t('common.error'), t('auth.forgot.errors.newPasswordRequired'));
+    if (newPassword.length < 8) return Alert.alert(t('common.error'), t('auth.forgot.errors.passwordTooShort'));
+    if (newPassword !== confirmPassword) return Alert.alert(t('common.error'), t('auth.forgot.errors.passwordMismatch'));
     setResetting(true);
     try {
       await resetPassword(emailSentTo, selectedShopId, otp.trim(), newPassword);
       Alert.alert(
-        'Password Reset',
-        'Your password has been reset. You can now log in.',
-        [{ text: 'Go to Login', onPress: () => navigation.navigate('Login') }]
+        t('auth.forgot.passwordReset'),
+        t('auth.forgot.passwordResetSuccess'),
+        [{ text: t('auth.forgot.goToLogin'), onPress: () => navigation.navigate('Login') }]
       );
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? 'Reset failed. Please try again.');
+      Alert.alert(t('common.error'), err.response?.data?.error ?? t('common.genericError'));
     } finally {
       setResetting(false);
     }
@@ -137,26 +124,25 @@ export default function ForgotScreen({ navigation }) {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text style={styles.title}>Account Recovery</Text>
+          <Text style={styles.title}>{t('auth.forgot.title')}</Text>
           <Text style={styles.subtitle}>
-            {step === 'email' && 'Enter your registered email to start the recovery process.'}
-            {step === 'otp' && `A recovery code was sent to ${emailSentTo}. Enter it below.`}
-            {step === 'securityQuestion' && 'Email could not be delivered. Answer your security question to verify your identity.'}
-            {step === 'newPassword' && 'Identity verified. Choose a new password.'}
+            {step === 'email' && t('auth.forgot.subtitles.email')}
+            {step === 'otp' && t('auth.forgot.subtitles.otp', { email: emailSentTo })}
+            {step === 'securityQuestion' && t('auth.forgot.subtitles.securityQuestion')}
+            {step === 'newPassword' && t('auth.forgot.subtitles.newPassword')}
           </Text>
         </View>
 
         <View style={styles.card}>
 
-          {/* Step: email */}
           {step === 'email' && (
             <>
-              <Label>Email Address</Label>
+              <Label>{t('auth.forgot.emailAddress')}</Label>
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="you@example.com"
+                placeholder={t('auth.login.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -165,23 +151,22 @@ export default function ForgotScreen({ navigation }) {
                 <ActivityIndicator size="large" color="#1a2e4a" style={{ marginTop: 20 }} />
               ) : (
                 <TouchableOpacity style={styles.btn} onPress={handleSend}>
-                  <Text style={styles.btnText}>Continue</Text>
+                  <Text style={styles.btnText}>{t('auth.forgot.continue')}</Text>
                 </TouchableOpacity>
               )}
             </>
           )}
 
-          {/* Step: OTP from email */}
           {step === 'otp' && (
             <>
               <View style={styles.infoBanner}>
                 <Ionicons name="mail-outline" size={16} color="#1d4ed8" />
-                <Text style={styles.infoText}>Check your email for your Shop ID(s) and 6-digit code.</Text>
+                <Text style={styles.infoText}>{t('auth.forgot.otpHint')}</Text>
               </View>
 
-              <ShopPicker shops={shops} selected={selectedShopId} onSelect={setSelectedShopId} />
+              <ShopPicker shops={shops} selected={selectedShopId} onSelect={setSelectedShopId} t={t} />
 
-              <Label>6-Digit Reset Code</Label>
+              <Label>{t('auth.forgot.otpCode')}</Label>
               <TextInput
                 style={styles.input}
                 value={otp}
@@ -191,43 +176,43 @@ export default function ForgotScreen({ navigation }) {
                 maxLength={6}
               />
               <TouchableOpacity style={styles.btn} onPress={handleOtpNext}>
-                <Text style={styles.btnText}>Next →</Text>
+                <Text style={styles.btnText}>{t('auth.forgot.continue')} →</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.resendBtn} onPress={() => { setStep('email'); setOtp(''); }}>
-                <Text style={styles.resendText}>Didn't get the code? Send again</Text>
+                <Text style={styles.resendText}>{t('auth.forgot.resend')}</Text>
               </TouchableOpacity>
             </>
           )}
 
-          {/* Step: security question */}
           {step === 'securityQuestion' && (
             <>
               <View style={styles.warningBanner}>
                 <Ionicons name="shield-checkmark-outline" size={16} color="#92400e" />
-                <Text style={styles.warningText}>Answer your security question to verify it's really you.</Text>
+                <Text style={styles.warningText}>{t('auth.forgot.securityWarning')}</Text>
               </View>
 
               <ShopPicker
                 shops={shops}
                 selected={selectedShopId}
                 onSelect={handleShopSelect}
+                t={t}
               />
 
               {fetchingQuestion ? (
                 <ActivityIndicator size="small" color="#1a2e4a" style={{ marginVertical: 12 }} />
               ) : securityQuestion ? (
                 <>
-                  <Label>Security Question</Label>
+                  <Label>{t('auth.forgot.securityQuestion')}</Label>
                   <View style={styles.questionBox}>
                     <Text style={styles.questionText}>{securityQuestion}</Text>
                   </View>
 
-                  <Label>Your Answer</Label>
+                  <Label>{t('auth.forgot.yourAnswer')}</Label>
                   <TextInput
                     style={styles.input}
                     value={securityAnswer}
                     onChangeText={setSecurityAnswer}
-                    placeholder="Type your answer"
+                    placeholder={t('auth.forgot.answerPlaceholder')}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
@@ -242,41 +227,40 @@ export default function ForgotScreen({ navigation }) {
                   onPress={handleVerifyAnswer}
                   disabled={!securityQuestion}
                 >
-                  <Text style={styles.btnText}>Verify Identity</Text>
+                  <Text style={styles.btnText}>{t('auth.forgot.verifyIdentity')}</Text>
                 </TouchableOpacity>
               )}
             </>
           )}
 
-          {/* Step: new password */}
           {step === 'newPassword' && (
             <>
               <View style={styles.successBanner}>
                 <Ionicons name="checkmark-circle-outline" size={16} color="#065f46" />
-                <Text style={styles.successText}>Identity verified. Choose a new password.</Text>
+                <Text style={styles.successText}>{t('auth.forgot.identityVerified')}</Text>
               </View>
 
-              <Label>New Password</Label>
+              <Label>{t('auth.forgot.newPassword')}</Label>
               <TextInput
                 style={styles.input}
                 value={newPassword}
                 onChangeText={setNewPassword}
-                placeholder="Min 8 characters"
+                placeholder={t('auth.forgot.newPasswordPlaceholder')}
                 secureTextEntry
               />
-              <Label>Confirm Password</Label>
+              <Label>{t('auth.forgot.confirmPassword')}</Label>
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Repeat new password"
+                placeholder={t('auth.forgot.confirmPasswordPlaceholder')}
                 secureTextEntry
               />
               {resetting ? (
                 <ActivityIndicator size="large" color="#1a2e4a" style={{ marginTop: 20 }} />
               ) : (
                 <TouchableOpacity style={styles.btn} onPress={handleReset}>
-                  <Text style={styles.btnText}>Reset Password</Text>
+                  <Text style={styles.btnText}>{t('auth.forgot.resetPassword')}</Text>
                 </TouchableOpacity>
               )}
             </>
@@ -292,12 +276,12 @@ function Label({ children }) {
   return <Text style={styles.label}>{children}</Text>;
 }
 
-function ShopPicker({ shops, selected, onSelect }) {
+function ShopPicker({ shops, selected, onSelect, t }) {
   if (shops.length <= 1) {
     if (shops.length === 0) return null;
     return (
       <View style={styles.singleShop}>
-        <Label>Shop</Label>
+        <Label>{t('auth.login.shopId')}</Label>
         <Text style={styles.shopName}>{shops[0].shopName}</Text>
         <Text style={styles.shopId}>{shops[0].shopId}</Text>
       </View>
@@ -305,7 +289,7 @@ function ShopPicker({ shops, selected, onSelect }) {
   }
   return (
     <>
-      <Label>Select Shop</Label>
+      <Label>{t('auth.forgot.selectShop')}</Label>
       {shops.map(s => (
         <TouchableOpacity
           key={s.shopId}

@@ -17,6 +17,13 @@ pdfMake.vfs = pdfFonts.pdfMake?.vfs ?? pdfFonts;
  * @returns {Promise<Buffer>}
  */
 function generateInvoicePdf({ sale, items, tenant }) {
+  const currency = tenant?.currency ?? 'XAF';
+  const fmt = (n) => {
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(n ?? 0));
+    } catch { return `${currency} ${Number(n ?? 0).toLocaleString()}`; }
+  };
+
   const rows = [
     [
       { text: 'Product', bold: true },
@@ -27,8 +34,8 @@ function generateInvoicePdf({ sale, items, tenant }) {
     ...items.map(i => [
       i.product_name,
       { text: String(i.quantity), alignment: 'right' },
-      { text: `XAF ${Number(i.unit_price).toLocaleString('fr-CM')}`, alignment: 'right' },
-      { text: `XAF ${Number(i.subtotal).toLocaleString('fr-CM')}`, alignment: 'right' },
+      { text: fmt(i.unit_price), alignment: 'right' },
+      { text: fmt(i.subtotal), alignment: 'right' },
     ]),
   ];
 
@@ -44,9 +51,9 @@ function generateInvoicePdf({ sale, items, tenant }) {
           body: rows,
         },
       },
-      { text: `Discount: -XAF ${Number(sale.discount).toLocaleString('fr-CM')}`, alignment: 'right', margin: [0, 8, 0, 0] },
-      { text: `Tax: +XAF ${Number(sale.tax).toLocaleString('fr-CM')}`, alignment: 'right' },
-      { text: `Total: XAF ${Number(sale.total).toLocaleString('fr-CM')}`, style: 'total', alignment: 'right', margin: [0, 4, 0, 0] },
+      { text: `Discount: -${fmt(sale.discount)}`, alignment: 'right', margin: [0, 8, 0, 0] },
+      { text: `Tax: +${fmt(sale.tax)}`, alignment: 'right' },
+      { text: `Total: ${fmt(sale.total)}`, style: 'total', alignment: 'right', margin: [0, 4, 0, 0] },
     ],
     styles: {
       header: { fontSize: 20, bold: true, margin: [0, 0, 0, 8] },

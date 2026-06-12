@@ -162,6 +162,52 @@ function createTables() {
   try { db.run("ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0"); } catch {}
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id         TEXT PRIMARY KEY,
+      tenant_id  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      contact    TEXT,
+      phone      TEXT,
+      email      TEXT,
+      address    TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id          TEXT PRIMARY KEY,
+      tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      supplier_id TEXT REFERENCES suppliers(id),
+      status      TEXT NOT NULL DEFAULT 'pending',
+      notes       TEXT,
+      created_by  TEXT NOT NULL REFERENCES users(id),
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS purchase_order_items (
+      id                TEXT PRIMARY KEY,
+      purchase_order_id TEXT NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+      product_id        TEXT NOT NULL REFERENCES products(id),
+      qty_ordered       INTEGER NOT NULL DEFAULT 0,
+      qty_received      INTEGER NOT NULL DEFAULT 0,
+      unit_cost         REAL NOT NULL DEFAULT 0,
+      subtotal          REAL NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS promotions (
+      id           TEXT PRIMARY KEY,
+      tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      code         TEXT,
+      type         TEXT NOT NULL DEFAULT 'percent',
+      value        REAL NOT NULL DEFAULT 0,
+      min_purchase REAL NOT NULL DEFAULT 0,
+      is_active    INTEGER NOT NULL DEFAULT 1,
+      expires_at   TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS payments (
       id                TEXT PRIMARY KEY,
       tenant_id         TEXT NOT NULL,
@@ -171,6 +217,57 @@ function createTables() {
       plan              TEXT NOT NULL,
       status            TEXT NOT NULL DEFAULT 'pending',
       created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS customers (
+      id             TEXT PRIMARY KEY,
+      tenant_id      TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name           TEXT NOT NULL,
+      phone          TEXT,
+      email          TEXT,
+      loyalty_points INTEGER NOT NULL DEFAULT 0,
+      total_spent    REAL NOT NULL DEFAULT 0,
+      visit_count    INTEGER NOT NULL DEFAULT 0,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id         TEXT PRIMARY KEY,
+      product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      tenant_id  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      sku        TEXT,
+      barcode    TEXT,
+      price      REAL NOT NULL DEFAULT 0,
+      cost       REAL NOT NULL DEFAULT 0,
+      stock      INTEGER NOT NULL DEFAULT 0,
+      attributes TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  try { db.run("ALTER TABLE sales ADD COLUMN customer_id TEXT"); } catch {}
+  try { db.run("ALTER TABLE products ADD COLUMN has_variants INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { db.run("ALTER TABLE sale_items ADD COLUMN variant_id TEXT"); } catch {}
+  try { db.run("ALTER TABLE sale_items ADD COLUMN cost_price REAL NOT NULL DEFAULT 0"); } catch {}
+  try { db.run("ALTER TABLE sales ADD COLUMN promo_id TEXT"); } catch {}
+  // Soft-delete: products with sales history cannot be hard-deleted (FK constraint).
+  // Mark them deleted instead so historical records stay intact.
+  try { db.run("ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { db.run("ALTER TABLE sale_items ADD COLUMN product_name TEXT"); } catch {}
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id          TEXT PRIMARY KEY,
+      tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      amount      REAL NOT NULL,
+      category    TEXT NOT NULL DEFAULT 'Other',
+      description TEXT,
+      date        TEXT NOT NULL,
+      created_by  TEXT NOT NULL REFERENCES users(id),
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 }

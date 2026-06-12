@@ -1,11 +1,23 @@
 /**
- * Formats a number as a Cameroon Francs (XAF) currency string.
- * @param {number} amount
+ * Formats a number using Intl.NumberFormat for the given currency code and locale.
+ * @param {number|null|undefined} amount
+ * @param {string} [currency='XAF']
+ * @param {string} [locale]
  * @returns {string}
  */
-function formatCurrency(amount) {
-  if (amount === null || amount === undefined) return 'XAF 0';
-  return 'XAF ' + Number(amount).toLocaleString('fr-CM');
+function formatCurrency(amount, currency, locale) {
+  const code = currency ?? 'XAF';
+  const n = amount === null || amount === undefined ? 0 : Number(amount);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${code} ${n.toLocaleString(locale)}`;
+  }
 }
 
 /**
