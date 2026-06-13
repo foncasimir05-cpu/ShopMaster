@@ -9,9 +9,10 @@ function CartItem({ item, onRemove, onChangeQty }) {
   const { formatCurrency } = useShop();
   const { cartKey, product, variant, quantity } = item;
   const price = variant ? variant.price : product.price;
+  const subtotal = formatCurrency(price * quantity);
 
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessible={false}>
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>{product.name}</Text>
         {variant && <Text style={styles.variantTag}>{variant.name}</Text>}
@@ -21,6 +22,12 @@ function CartItem({ item, onRemove, onChangeQty }) {
       <View style={styles.qtyWrap}>
         <TouchableOpacity
           testID="cart-minus"
+          accessibilityRole="button"
+          accessibilityLabel={
+            quantity === 1
+              ? `Remove ${product.name} from cart`
+              : `Decrease ${product.name} quantity, currently ${quantity}`
+          }
           style={styles.qtyBtn}
           onPress={() => quantity > 1 ? onChangeQty(cartKey, quantity - 1) : onRemove(cartKey)}
           activeOpacity={0.7}
@@ -28,10 +35,18 @@ function CartItem({ item, onRemove, onChangeQty }) {
           <Ionicons name={quantity === 1 ? 'trash-outline' : 'remove'} size={14} color={quantity === 1 ? '#ef4444' : '#374151'} />
         </TouchableOpacity>
 
-        <Text testID="cart-qty" style={styles.qty}>{quantity}</Text>
+        <Text
+          testID="cart-qty"
+          style={styles.qty}
+          accessibilityLabel={`Quantity: ${quantity}`}
+        >
+          {quantity}
+        </Text>
 
         <TouchableOpacity
           testID="cart-plus"
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${product.name} quantity`}
           style={[styles.qtyBtn, styles.qtyBtnPlus]}
           onPress={() => onChangeQty(cartKey, quantity + 1)}
           activeOpacity={0.7}
@@ -40,7 +55,13 @@ function CartItem({ item, onRemove, onChangeQty }) {
         </TouchableOpacity>
       </View>
 
-      <Text testID="cart-subtotal" style={styles.subtotal}>{formatCurrency(price * quantity)}</Text>
+      <Text
+        testID="cart-subtotal"
+        style={styles.subtotal}
+        accessibilityLabel={`Subtotal: ${subtotal}`}
+      >
+        {subtotal}
+      </Text>
     </View>
   );
 }

@@ -27,29 +27,42 @@ export default function HomeScreen() {
 
   const now = new Date();
   const dateStr = now.toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' });
+  const userName = user?.name ?? user?.email?.split('@')[0];
+
+  const lowStockNames = lowStockProducts.slice(0, 3).map(p => p.name).join(', ')
+    + (lowStockCount > 3 ? ` and ${lowStockCount - 3} more` : '');
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
       {/* Hero header card */}
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
+      <View
+        style={styles.hero}
+        accessible
+        accessibilityLabel={`${dateStr}. Welcome back, ${userName}. Shop: ${user?.shopName ?? 'ShopMaster'}`}
+      >
+        <View style={styles.heroTop} importantForAccessibility="no">
           <View style={styles.heroDot} />
           <View style={styles.heroDot2} />
           <View style={styles.heroDot3} />
         </View>
-        <Text style={styles.heroDate}>{dateStr}</Text>
-        <Text style={styles.heroGreeting}>
+        <Text style={styles.heroDate} importantForAccessibility="no">{dateStr}</Text>
+        <Text style={styles.heroGreeting} importantForAccessibility="no">
           {t('home.welcomeBack')}{'\n'}
-          <Text style={styles.heroName}>{user?.name ?? user?.email?.split('@')[0]}</Text>
+          <Text style={styles.heroName}>{userName}</Text>
         </Text>
         <View style={styles.heroFooter}>
-          <View style={styles.heroShop}>
-            <Ionicons name="storefront-outline" size={12} color="#93c5fd" />
+          <View style={styles.heroShop} importantForAccessibility="no">
+            <Ionicons name="storefront-outline" size={12} color="#93c5fd" importantForAccessibility="no" />
             <Text style={styles.heroShopName} numberOfLines={1}>{user?.shopName ?? 'ShopMaster'}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={14} color="#fca5a5" />
+          <TouchableOpacity
+            onPress={logout}
+            style={styles.logoutBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <Ionicons name="log-out-outline" size={14} color="#fca5a5" importantForAccessibility="no" />
             <Text style={styles.logoutText}>{t('home.logout')}</Text>
           </TouchableOpacity>
         </View>
@@ -61,11 +74,13 @@ export default function HomeScreen() {
           style={styles.alertCard}
           onPress={() => navigation.navigate('Products')}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Low stock alert: ${lowStockCount} product${lowStockCount !== 1 ? 's' : ''} need restocking. ${lowStockNames}. Tap to view products.`}
         >
-          <View style={styles.alertIconWrap}>
+          <View style={styles.alertIconWrap} importantForAccessibility="no">
             <Ionicons name="warning" size={18} color="#d97706" />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }} importantForAccessibility="no">
             <Text style={styles.alertTitle}>
               {t('home.lowStock', { count: lowStockCount })}
             </Text>
@@ -74,7 +89,7 @@ export default function HomeScreen() {
               {lowStockCount > 3 ? ` +${lowStockCount - 3} more` : ''}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#d97706" />
+          <Ionicons name="chevron-forward" size={16} color="#d97706" importantForAccessibility="no" />
         </TouchableOpacity>
       )}
 
@@ -87,11 +102,13 @@ export default function HomeScreen() {
             style={styles.actionCard}
             onPress={() => navigation.navigate(action.screen)}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t(`home.actions.${action.key}`)}
           >
-            <View style={[styles.actionIconWrap, { backgroundColor: action.bg }]}>
+            <View style={[styles.actionIconWrap, { backgroundColor: action.bg }]} importantForAccessibility="no">
               <Ionicons name={action.icon} size={22} color={action.color} />
             </View>
-            <Text style={styles.actionLabel}>{t(`home.actions.${action.key}`)}</Text>
+            <Text style={styles.actionLabel} importantForAccessibility="no">{t(`home.actions.${action.key}`)}</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -48,22 +48,34 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, formatCurre
   const accent = catColor(item.category);
   const isOOS  = !item.has_variants && item.stock === 0;
   const isLow  = !item.has_variants && item.stock > 0 && item.stock <= 5;
+
+  const a11yLabel = [
+    item.name,
+    formatCurrency(item.price),
+    item.has_variants ? 'has variants' : null,
+    isOOS ? 'out of stock' : isLow ? `low stock, ${item.stock} remaining` : null,
+  ].filter(Boolean).join(', ');
+
   return (
     <TouchableOpacity
       style={[styles.productCard, isOOS && styles.productCardOOS]}
       onPress={() => onPress(item)}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ disabled: isOOS }}
+      accessibilityHint={isOOS ? undefined : item.has_variants ? 'Double-tap to choose a variant' : 'Double-tap to add to cart'}
     >
       <View style={[styles.cardStrip, { backgroundColor: accent }]} />
       <View style={styles.cardContent}>
-        <Text style={[styles.productName, isOOS && { color: '#94a3b8' }]} numberOfLines={3}>
+        <Text style={[styles.productName, isOOS && { color: '#94a3b8' }]} numberOfLines={3} importantForAccessibility="no">
           {item.name}
         </Text>
         <View style={styles.cardFooter}>
-          <Text style={[styles.productPrice, { color: isOOS ? '#94a3b8' : accent }]}>
+          <Text style={[styles.productPrice, { color: isOOS ? '#94a3b8' : accent }]} importantForAccessibility="no">
             {formatCurrency(item.price)}
           </Text>
-          <View style={styles.cardBadgeWrap}>
+          <View style={styles.cardBadgeWrap} importantForAccessibility="no">
             {item.has_variants && (
               <View style={styles.varsBadge}>
                 <Text style={styles.varsBadgeText}>VAR</Text>
@@ -437,16 +449,16 @@ export default function POSScreen({ navigation }) {
         </View>
 
         {!queued && (
-          <TouchableOpacity style={styles.printBtn} onPress={handlePrintReceipt}>
-            <Ionicons name="print-outline" size={16} color="#fff" />
+          <TouchableOpacity style={styles.printBtn} onPress={handlePrintReceipt} accessibilityRole="button" accessibilityLabel="Print receipt">
+            <Ionicons name="print-outline" size={16} color="#fff" importantForAccessibility="no" />
             <Text style={styles.printBtnText}>{t('pos.printReceipt')}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.newSaleBtn} onPress={startNewSale}>
-          <Ionicons name="add-circle-outline" size={18} color="#fff" />
+        <TouchableOpacity style={styles.newSaleBtn} onPress={startNewSale} accessibilityRole="button" accessibilityLabel="Start a new sale">
+          <Ionicons name="add-circle-outline" size={18} color="#fff" importantForAccessibility="no" />
           <Text style={styles.newSaleBtnText}>{t('pos.newSale')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.viewSaleBtn} onPress={() => navigation.navigate('SalesHistory')}>
+        <TouchableOpacity style={styles.viewSaleBtn} onPress={() => navigation.navigate('SalesHistory')} accessibilityRole="link" accessibilityLabel="View sales history">
           <Text style={styles.viewSaleBtnText}>{t('sales.title')} →</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -458,8 +470,12 @@ export default function POSScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {!isOnline && (
-        <View style={styles.offlineBanner}>
-          <Ionicons name="cloud-offline-outline" size={13} color="#fff" />
+        <View
+          style={styles.offlineBanner}
+          accessibilityLiveRegion="polite"
+          accessibilityLabel="You are offline. Sales will be queued and synced when reconnected."
+        >
+          <Ionicons name="cloud-offline-outline" size={13} color="#fff" importantForAccessibility="no" />
           <Text style={styles.offlineBannerText}>{t('pos.offline')}</Text>
         </View>
       )}
@@ -467,7 +483,7 @@ export default function POSScreen({ navigation }) {
       {/* Search bar */}
       <View style={styles.header}>
         <View style={styles.searchWrapper}>
-          <Ionicons name="search-outline" size={15} color="#94a3b8" />
+          <Ionicons name="search-outline" size={15} color="#94a3b8" importantForAccessibility="no" />
           <TextInput
             ref={searchRef}
             style={styles.searchInput}
@@ -477,25 +493,44 @@ export default function POSScreen({ navigation }) {
             onChangeText={handleSearch}
             returnKeyType="search"
             clearButtonMode="while-editing"
+            accessibilityLabel="Search products by name or barcode"
           />
-          {/* Green dot = USB scanner is active */}
-          <View style={[styles.scannerDot, scannerEnabled && styles.scannerDotActive]} />
+          <View
+            style={[styles.scannerDot, scannerEnabled && styles.scannerDotActive]}
+            accessibilityLabel={scannerEnabled ? 'USB scanner active' : undefined}
+          />
         </View>
-        <TouchableOpacity style={styles.cameraBtn} onPress={() => setScanning(true)}>
+        <TouchableOpacity
+          style={styles.cameraBtn}
+          onPress={() => setScanning(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Scan barcode with camera"
+        >
           <Ionicons name="barcode-outline" size={20} color="#1a2e4a" />
         </TouchableOpacity>
       </View>
 
       {/* Customer selector */}
-      <TouchableOpacity style={styles.customerBar} onPress={openCustomerPicker} activeOpacity={0.7}>
-        <Ionicons name="person-circle-outline" size={16} color={selectedCustomer ? '#2563eb' : '#94a3b8'} />
+      <TouchableOpacity
+        style={styles.customerBar}
+        onPress={openCustomerPicker}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={selectedCustomer ? `Customer: ${selectedCustomer.name}. Tap to change.` : 'Add customer to sale'}
+      >
+        <Ionicons name="person-circle-outline" size={16} color={selectedCustomer ? '#2563eb' : '#94a3b8'} importantForAccessibility="no" />
         {selectedCustomer ? (
-          <Text style={styles.customerBarName} numberOfLines={1}>{selectedCustomer.name}</Text>
+          <Text style={styles.customerBarName} numberOfLines={1} importantForAccessibility="no">{selectedCustomer.name}</Text>
         ) : (
-          <Text style={styles.customerBarPlaceholder}>{t('pos.addCustomer')}</Text>
+          <Text style={styles.customerBarPlaceholder} importantForAccessibility="no">{t('pos.addCustomer')}</Text>
         )}
         {selectedCustomer && (
-          <TouchableOpacity onPress={() => setSelectedCustomer(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={() => setSelectedCustomer(null)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${selectedCustomer.name} from sale`}
+          >
             <Ionicons name="close-circle" size={16} color="#94a3b8" />
           </TouchableOpacity>
         )}
@@ -551,9 +586,16 @@ export default function POSScreen({ navigation }) {
             onChangeText={t => { setPromoCode(t); if (!t) setPromoData(null); }}
             autoCapitalize="characters"
             editable={!promoData}
+            accessibilityLabel="Promo code"
+            accessibilityHint={promoData ? 'Promo applied. Remove it first to enter a new code.' : 'Enter a promo code and tap Apply'}
           />
           {promoData ? (
-            <TouchableOpacity style={styles.promoRemoveBtn} onPress={() => { setPromoData(null); setPromoCode(''); }}>
+            <TouchableOpacity
+              style={styles.promoRemoveBtn}
+              onPress={() => { setPromoData(null); setPromoCode(''); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove promo ${promoData.promoName}`}
+            >
               <Text style={styles.promoRemoveText}>✕ {promoData.promoName}</Text>
             </TouchableOpacity>
           ) : (
@@ -561,6 +603,9 @@ export default function POSScreen({ navigation }) {
               style={[styles.promoApplyBtn, (!promoCode.trim() || promoLoading) && styles.promoApplyBtnDisabled]}
               onPress={handleApplyPromo}
               disabled={promoLoading || !promoCode.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Apply promo code"
+              accessibilityState={{ disabled: promoLoading || !promoCode.trim() }}
             >
               {promoLoading
                 ? <ActivityIndicator size="small" color="#fff" />
@@ -593,6 +638,7 @@ export default function POSScreen({ navigation }) {
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor="#94a3b8"
+              accessibilityLabel="Discount amount"
             />
           </View>
         </View>
@@ -603,20 +649,24 @@ export default function POSScreen({ navigation }) {
         </View>
 
         {/* Payment method pills */}
-        <View style={styles.methodRow}>
+        <View style={styles.methodRow} accessibilityRole="radiogroup" accessibilityLabel="Payment method">
           {PAYMENT_METHOD_KEYS.map(m => (
             <TouchableOpacity
               key={m.key}
               style={[styles.methodPill, paymentMethod === m.key && styles.methodPillActive]}
               onPress={() => setPaymentMethod(m.key)}
+              accessibilityRole="radio"
+              accessibilityLabel={t(m.tKey)}
+              accessibilityState={{ selected: paymentMethod === m.key }}
             >
               <Ionicons
                 name={m.icon}
                 size={13}
                 color={paymentMethod === m.key ? '#2563eb' : '#94a3b8'}
                 style={{ marginRight: 3 }}
+                importantForAccessibility="no"
               />
-              <Text style={[styles.methodText, paymentMethod === m.key && styles.methodTextActive]}>
+              <Text style={[styles.methodText, paymentMethod === m.key && styles.methodTextActive]} importantForAccessibility="no">
                 {t(m.tKey)}
               </Text>
             </TouchableOpacity>
@@ -628,6 +678,9 @@ export default function POSScreen({ navigation }) {
           onPress={handleCharge}
           disabled={cart.length === 0}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={cart.length === 0 ? 'Cart is empty' : `Charge ${formatCurrency(totals.total)}`}
+          accessibilityState={{ disabled: cart.length === 0 }}
         >
           {cart.length === 0 ? (
             <Text style={styles.chargeBtnText}>{t('pos.emptyCart')}</Text>

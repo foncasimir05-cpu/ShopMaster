@@ -44,10 +44,21 @@ const ProductRow = React.memo(function ProductRow({ item, onEdit, onDelete, onMa
   const accent = catColor(item.category);
   const isLow = !item.has_variants && item.min_stock > 0 && item.stock <= item.min_stock;
   const isOOS = !item.has_variants && item.stock === 0;
+
+  const stockStatus = item.has_variants
+    ? 'has variants'
+    : isOOS ? 'out of stock'
+    : isLow ? `low stock, ${item.stock} in stock`
+    : `${item.stock} in stock`;
+
   return (
-    <View style={styles.row}>
-      <View style={[styles.rowAccent, { backgroundColor: accent }]} />
-      <View style={{ flex: 1, minWidth: 0 }}>
+    <View
+      style={styles.row}
+      accessible
+      accessibilityLabel={[item.name, formatCurrency(item.price), item.category, stockStatus].filter(Boolean).join(', ')}
+    >
+      <View style={[styles.rowAccent, { backgroundColor: accent }]} importantForAccessibility="no" />
+      <View style={{ flex: 1, minWidth: 0 }} importantForAccessibility="no">
         <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
         <View style={styles.rowMetaRow}>
           {item.category ? (
@@ -63,7 +74,7 @@ const ProductRow = React.memo(function ProductRow({ item, onEdit, onDelete, onMa
           </Text>
         </View>
       </View>
-      <View style={styles.rowRight}>
+      <View style={styles.rowRight} importantForAccessibility="no">
         {margin !== null && (
           <View style={styles.marginBadge}>
             <Text style={styles.marginBadgeText}>{margin}%</Text>
@@ -71,13 +82,28 @@ const ProductRow = React.memo(function ProductRow({ item, onEdit, onDelete, onMa
         )}
         <Text style={styles.rowPrice}>{formatCurrency(item.price)}</Text>
         <View style={styles.rowActions}>
-          <TouchableOpacity onPress={() => onManageVariants(item)} style={styles.iconBtn}>
+          <TouchableOpacity
+            onPress={() => onManageVariants(item)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Manage variants for ${item.name}`}
+          >
             <Ionicons name="options-outline" size={17} color={item.has_variants ? '#7c3aed' : '#cbd5e1'} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
+          <TouchableOpacity
+            onPress={() => onEdit(item)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${item.name}`}
+          >
             <Ionicons name="pencil-outline" size={17} color="#64748b" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onDelete(item)} style={styles.iconBtn}>
+          <TouchableOpacity
+            onPress={() => onDelete(item)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${item.name}`}
+          >
             <Ionicons name="trash-outline" size={17} color="#ef4444" />
           </TouchableOpacity>
         </View>
@@ -342,7 +368,7 @@ export default function ProductsScreen() {
 
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={16} color="#94a3b8" />
+        <Ionicons name="search" size={16} color="#94a3b8" importantForAccessibility="no" />
         <TextInput
           style={styles.search}
           placeholder={t('products.searchPlaceholder')}
@@ -351,9 +377,15 @@ export default function ProductsScreen() {
           returnKeyType="search"
           onSubmitEditing={fetchProducts}
           placeholderTextColor="#94a3b8"
+          accessibilityLabel="Search products"
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={() => setSearch('')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close-circle" size={16} color="#94a3b8" />
           </TouchableOpacity>
         )}
@@ -361,10 +393,20 @@ export default function ProductsScreen() {
 
       {/* Category filter chips */}
       {categories.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={styles.catScrollContent}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.catScroll}
+          contentContainerStyle={styles.catScrollContent}
+          accessibilityRole="scrollview"
+          accessibilityLabel="Filter by category"
+        >
           <TouchableOpacity
             style={[styles.catChip, styles.catChipSpaced, !activeCategory && styles.catChipActive]}
             onPress={() => setActiveCategory(null)}
+            accessibilityRole="radio"
+            accessibilityLabel="All categories"
+            accessibilityState={{ selected: !activeCategory }}
           >
             <Text style={[styles.catChipText, !activeCategory && styles.catChipTextActive]}>All</Text>
           </TouchableOpacity>
@@ -376,8 +418,11 @@ export default function ProductsScreen() {
                 key={cat}
                 style={[styles.catChip, styles.catChipSpaced, isActive && { backgroundColor: color + '20', borderColor: color }]}
                 onPress={() => setActiveCategory(isActive ? null : cat)}
+                accessibilityRole="radio"
+                accessibilityLabel={cat}
+                accessibilityState={{ selected: isActive }}
               >
-                <View style={[styles.catDot, { backgroundColor: color }]} />
+                <View style={[styles.catDot, { backgroundColor: color }]} importantForAccessibility="no" />
                 <Text style={[styles.catChipText, isActive && { color }]}>{cat}</Text>
               </TouchableOpacity>
             );
@@ -386,16 +431,31 @@ export default function ProductsScreen() {
       )}
 
       <View style={styles.toolbarRow}>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Ionicons name="add" size={16} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Add new product"
+        >
+          <Ionicons name="add" size={16} color="#fff" importantForAccessibility="no" />
           <Text style={styles.addBtnText}>{t('products.addProduct')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.csvBtn} onPress={() => setImportVisible(true)}>
-          <Ionicons name="cloud-upload-outline" size={16} color="#1a2e4a" />
+        <TouchableOpacity
+          style={styles.csvBtn}
+          onPress={() => setImportVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Import products from CSV"
+        >
+          <Ionicons name="cloud-upload-outline" size={16} color="#1a2e4a" importantForAccessibility="no" />
           <Text style={styles.csvBtnText}>{t('products.import')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.csvBtn} onPress={handleExport}>
-          <Ionicons name="cloud-download-outline" size={16} color="#1a2e4a" />
+        <TouchableOpacity
+          style={styles.csvBtn}
+          onPress={handleExport}
+          accessibilityRole="button"
+          accessibilityLabel="Export products to CSV"
+        >
+          <Ionicons name="cloud-download-outline" size={16} color="#1a2e4a" importantForAccessibility="no" />
           <Text style={styles.csvBtnText}>{t('products.export')}</Text>
         </TouchableOpacity>
       </View>

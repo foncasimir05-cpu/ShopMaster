@@ -103,10 +103,17 @@ function PushRegistration() {
 function OfflineBanner() {
   const { isOnline, pendingCount } = useOffline();
   if (isOnline) return null;
+  const label = pendingCount > 0
+    ? `Offline. ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} queued and will sync when reconnected.`
+    : 'Offline. Sales will be queued and synced when reconnected.';
   return (
-    <View style={[bannerStyles.bar, { backgroundColor: '#dc2626' }]}>
-      <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
-      <Text style={bannerStyles.text}>
+    <View
+      style={[bannerStyles.bar, { backgroundColor: '#dc2626' }]}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={label}
+    >
+      <Ionicons name="cloud-offline-outline" size={14} color="#fff" importantForAccessibility="no" />
+      <Text style={bannerStyles.text} importantForAccessibility="no">
         Offline{pendingCount > 0 ? ` · ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} queued` : ''}
       </Text>
     </View>
@@ -117,12 +124,21 @@ function SubShopBanner() {
   const { isViewingSubShop, user, switchBackToParent, parentUser } = useAuth();
   if (!isViewingSubShop) return null;
   return (
-    <View style={bannerStyles.bar}>
-      <Ionicons name="storefront-outline" size={14} color="#fff" />
-      <Text style={bannerStyles.text} numberOfLines={1}>
+    <View
+      style={bannerStyles.bar}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`Viewing sub-shop: ${user?.shopName}`}
+    >
+      <Ionicons name="storefront-outline" size={14} color="#fff" importantForAccessibility="no" />
+      <Text style={bannerStyles.text} numberOfLines={1} importantForAccessibility="no">
         Viewing: <Text style={bannerStyles.bold}>{user?.shopName}</Text>
       </Text>
-      <TouchableOpacity onPress={switchBackToParent} style={bannerStyles.btn}>
+      <TouchableOpacity
+        onPress={switchBackToParent}
+        style={bannerStyles.btn}
+        accessibilityRole="button"
+        accessibilityLabel={`Back to ${parentUser?.shopName ?? 'Main Shop'}`}
+      >
         <Text style={bannerStyles.btnText}>← Back to {parentUser?.shopName ?? 'Main Shop'}</Text>
       </TouchableOpacity>
     </View>
