@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, Alert, ScrollView,
@@ -43,6 +43,48 @@ function catColor(category) {
   for (let i = 0; i < category.length; i++) h = category.charCodeAt(i) + ((h << 5) - h);
   return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
 }
+
+const ProductCard = React.memo(function ProductCard({ item, onPress, formatCurrency }) {
+  const accent = catColor(item.category);
+  const isOOS  = !item.has_variants && item.stock === 0;
+  const isLow  = !item.has_variants && item.stock > 0 && item.stock <= 5;
+  return (
+    <TouchableOpacity
+      style={[styles.productCard, isOOS && styles.productCardOOS]}
+      onPress={() => onPress(item)}
+      activeOpacity={0.75}
+    >
+      <View style={[styles.cardStrip, { backgroundColor: accent }]} />
+      <View style={styles.cardContent}>
+        <Text style={[styles.productName, isOOS && { color: '#94a3b8' }]} numberOfLines={3}>
+          {item.name}
+        </Text>
+        <View style={styles.cardFooter}>
+          <Text style={[styles.productPrice, { color: isOOS ? '#94a3b8' : accent }]}>
+            {formatCurrency(item.price)}
+          </Text>
+          <View style={styles.cardBadgeWrap}>
+            {item.has_variants && (
+              <View style={styles.varsBadge}>
+                <Text style={styles.varsBadgeText}>VAR</Text>
+              </View>
+            )}
+            {isOOS && (
+              <View style={styles.oosBadge}>
+                <Text style={styles.oosBadgeText}>OUT</Text>
+              </View>
+            )}
+            {isLow && (
+              <View style={styles.lowBadge}>
+                <Text style={styles.lowBadgeText}>{item.stock}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function POSScreen({ navigation }) {
   const { t } = useTranslation();
@@ -200,7 +242,7 @@ export default function POSScreen({ navigation }) {
 
   // ── Variant picker ───────────────────────────────────────────────────────────
 
-  const openVariantPicker = async (product) => {
+  const openVariantPicker = useCallback(async (product) => {
     setVariantPickerProduct(product);
     setLoadingVariants(true);
     try {
@@ -212,12 +254,12 @@ export default function POSScreen({ navigation }) {
     } finally {
       setLoadingVariants(false);
     }
-  };
+  }, []);
 
-  const handleProductPress = (product) => {
+  const handleProductPress = useCallback((product) => {
     if (product.has_variants) openVariantPicker(product);
     else addToCart(product);
-  };
+  }, [openVariantPicker, addToCart]);
 
   // ── Customer picker ──────────────────────────────────────────────────────────
 
@@ -276,9 +318,17 @@ export default function POSScreen({ navigation }) {
     fetchProducts(text);
   };
 
-  const totals = computeCartTotals(
-    cart.map(i => ({ product: { ...i.product, price: i.variant ? i.variant.price : i.product.price }, quantity: i.quantity })),
-    { discount: (parseFloat(discount) || 0) + (promoData?.discount ?? 0), taxRate: TAX_RATE }
+  const totals = useMemo(
+    () => computeCartTotals(
+      cart.map(i => ({ product: { ...i.product, price: i.variant ? i.variant.price : i.product.price }, quantity: i.quantity })),
+      { discount: (parseFloat(discount) || 0) + (promoData?.discount ?? 0), taxRate: TAX_RATE }
+    ),
+    [cart, discount, promoData]
+  );
+
+  const renderProductCard = useCallback(
+    ({ item }) => <ProductCard item={item} onPress={handleProductPress} formatCurrency={formatCurrency} />,
+    [handleProductPress, formatCurrency]
   );
 
   const handleConfirmPayment = async ({ tendered, change }) => {
@@ -466,50 +516,11 @@ export default function POSScreen({ navigation }) {
           numColumns={numProductCols}
           style={styles.grid}
           contentContainerStyle={styles.gridContent}
-          renderItem={({ item }) => {
-            const accent = catColor(item.category);
-            const isOOS  = !item.has_variants && item.stock === 0;
-            const isLow  = !item.has_variants && item.stock > 0 && item.stock <= 5;
-            return (
-              <TouchableOpacity
-                style={[styles.productCard, isOOS && styles.productCardOOS]}
-                onPress={() => handleProductPress(item)}
-                activeOpacity={0.75}
-              >
-                {/* Category accent strip */}
-                <View style={[styles.cardStrip, { backgroundColor: accent }]} />
-
-                <View style={styles.cardContent}>
-                  <Text style={[styles.productName, isOOS && { color: '#94a3b8' }]} numberOfLines={3}>
-                    {item.name}
-                  </Text>
-
-                  <View style={styles.cardFooter}>
-                    <Text style={[styles.productPrice, { color: isOOS ? '#94a3b8' : accent }]}>
-                      {formatCurrency(item.price)}
-                    </Text>
-                    <View style={styles.cardBadgeWrap}>
-                      {item.has_variants && (
-                        <View style={styles.varsBadge}>
-                          <Text style={styles.varsBadgeText}>VAR</Text>
-                        </View>
-                      )}
-                      {isOOS && (
-                        <View style={styles.oosBadge}>
-                          <Text style={styles.oosBadgeText}>OUT</Text>
-                        </View>
-                      )}
-                      {isLow && (
-                        <View style={styles.lowBadge}>
-                          <Text style={styles.lowBadgeText}>{item.stock}</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderProductCard}
+          windowSize={5}
+          maxToRenderPerBatch={8}
+          initialNumToRender={numProductCols * 3}
+          removeClippedSubviews={Platform.OS !== 'web'}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="cube-outline" size={48} color="#cbd5e1" />

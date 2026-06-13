@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 
-export default function CartItem({ item, onRemove, onChangeQty }) {
+function CartItem({ item, onRemove, onChangeQty }) {
   const { t } = useTranslation();
   const { formatCurrency } = useShop();
   const { cartKey, product, variant, quantity } = item;
@@ -20,6 +20,7 @@ export default function CartItem({ item, onRemove, onChangeQty }) {
 
       <View style={styles.qtyWrap}>
         <TouchableOpacity
+          testID="cart-minus"
           style={styles.qtyBtn}
           onPress={() => quantity > 1 ? onChangeQty(cartKey, quantity - 1) : onRemove(cartKey)}
           activeOpacity={0.7}
@@ -27,9 +28,10 @@ export default function CartItem({ item, onRemove, onChangeQty }) {
           <Ionicons name={quantity === 1 ? 'trash-outline' : 'remove'} size={14} color={quantity === 1 ? '#ef4444' : '#374151'} />
         </TouchableOpacity>
 
-        <Text style={styles.qty}>{quantity}</Text>
+        <Text testID="cart-qty" style={styles.qty}>{quantity}</Text>
 
         <TouchableOpacity
+          testID="cart-plus"
           style={[styles.qtyBtn, styles.qtyBtnPlus]}
           onPress={() => onChangeQty(cartKey, quantity + 1)}
           activeOpacity={0.7}
@@ -38,10 +40,12 @@ export default function CartItem({ item, onRemove, onChangeQty }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.subtotal}>{formatCurrency(price * quantity)}</Text>
+      <Text testID="cart-subtotal" style={styles.subtotal}>{formatCurrency(price * quantity)}</Text>
     </View>
   );
 }
+
+export default React.memo(CartItem);
 
 const styles = StyleSheet.create({
   row: {

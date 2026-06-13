@@ -37,6 +37,55 @@ function catColor(category) {
 
 const CAN_SCAN = Platform.OS !== 'web';
 
+const ProductRow = React.memo(function ProductRow({ item, onEdit, onDelete, onManageVariants, formatCurrency, t }) {
+  const margin = item.price > 0 && item.cost > 0
+    ? Math.round(((item.price - item.cost) / item.price) * 100)
+    : null;
+  const accent = catColor(item.category);
+  const isLow = !item.has_variants && item.min_stock > 0 && item.stock <= item.min_stock;
+  const isOOS = !item.has_variants && item.stock === 0;
+  return (
+    <View style={styles.row}>
+      <View style={[styles.rowAccent, { backgroundColor: accent }]} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
+        <View style={styles.rowMetaRow}>
+          {item.category ? (
+            <Text style={[styles.rowCat, { color: accent }]}>{item.category}</Text>
+          ) : null}
+          <Text style={styles.rowSub}>
+            {item.sku ? `SKU: ${item.sku}` : 'No SKU'}
+          </Text>
+          <Text style={[styles.rowStock, isOOS && styles.rowStockOOS, isLow && styles.rowStockLow]}>
+            {item.has_variants ? t('products.seeVariants') : t('products.inStock', { count: item.stock })}
+            {isLow && !isOOS ? ' ⚠' : ''}
+            {isOOS ? ` ${t('products.outOfStock')}` : ''}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.rowRight}>
+        {margin !== null && (
+          <View style={styles.marginBadge}>
+            <Text style={styles.marginBadgeText}>{margin}%</Text>
+          </View>
+        )}
+        <Text style={styles.rowPrice}>{formatCurrency(item.price)}</Text>
+        <View style={styles.rowActions}>
+          <TouchableOpacity onPress={() => onManageVariants(item)} style={styles.iconBtn}>
+            <Ionicons name="options-outline" size={17} color={item.has_variants ? '#7c3aed' : '#cbd5e1'} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onEdit(item)} style={styles.iconBtn}>
+            <Ionicons name="pencil-outline" size={17} color="#64748b" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(item)} style={styles.iconBtn}>
+            <Ionicons name="trash-outline" size={17} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
 export default function ProductsScreen() {
   const { t } = useTranslation();
   const { formatCurrency } = useShop();
@@ -84,13 +133,13 @@ export default function ProductsScreen() {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditProduct(null);
     setForm({ name: '', sku: '', barcode: '', price: '', cost: '', stock: '', category: '', min_stock: '' });
     setModalVisible(true);
-  };
+  }, []);
 
-  const openEdit = product => {
+  const openEdit = useCallback(product => {
     setEditProduct(product);
     setForm({
       name: product.name,
@@ -103,7 +152,7 @@ export default function ProductsScreen() {
       min_stock: product.min_stock ? String(product.min_stock) : '',
     });
     setModalVisible(true);
-  };
+  }, []);
 
   const handleSave = async () => {
     if (!form.name) { Alert.alert(t('common.error'), t('products.errors.nameRequired')); return; }
@@ -131,7 +180,7 @@ export default function ProductsScreen() {
     }
   };
 
-  const handleDelete = product => {
+  const handleDelete = useCallback(product => {
     const doDelete = async () => {
       try {
         await api.deleteProduct(product.id);
@@ -152,7 +201,7 @@ export default function ProductsScreen() {
         { text: t('common.delete'), style: 'destructive', onPress: doDelete },
       ]);
     }
-  };
+  }, [fetchProducts, refreshAlerts, t]);
 
   // ── Variant management ──────────────────────────────────────────────────────
   const [variantProduct, setVariantProduct] = useState(null);
@@ -164,7 +213,7 @@ export default function ProductsScreen() {
   // Tracks which attribute tabs are active in the variant builder
   const [attrTab, setAttrTab] = useState('size'); // 'size' | 'color' | 'weight' | 'custom'
 
-  const openVariantManager = async (product) => {
+  const openVariantManager = useCallback(async (product) => {
     setVariantProduct(product);
     setLoadingVariants(true);
     try {
@@ -172,7 +221,7 @@ export default function ProductsScreen() {
       setVariants(data);
     } catch (err) { Alert.alert('Error', err.message); }
     finally { setLoadingVariants(false); }
-  };
+  }, []);
 
   const openAddVariant = () => {
     setEditVariant(null);
@@ -269,6 +318,20 @@ export default function ProductsScreen() {
     setScannerVisible(false);
   };
 
+  const renderProductRow = useCallback(
+    ({ item }) => (
+      <ProductRow
+        item={item}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        onManageVariants={openVariantManager}
+        formatCurrency={formatCurrency}
+        t={t}
+      />
+    ),
+    [openEdit, handleDelete, openVariantManager, formatCurrency, t]
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -344,54 +407,11 @@ export default function ProductsScreen() {
           data={displayedProducts}
           keyExtractor={p => p.id}
           contentContainerStyle={{ paddingBottom: 16 }}
-          renderItem={({ item }) => {
-            const margin = item.price > 0 && item.cost > 0
-              ? Math.round(((item.price - item.cost) / item.price) * 100)
-              : null;
-            const accent = catColor(item.category);
-            const isLow = !item.has_variants && item.min_stock > 0 && item.stock <= item.min_stock;
-            const isOOS = !item.has_variants && item.stock === 0;
-            return (
-              <View style={styles.row}>
-                <View style={[styles.rowAccent, { backgroundColor: accent }]} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
-                  <View style={styles.rowMetaRow}>
-                    {item.category ? (
-                      <Text style={[styles.rowCat, { color: accent }]}>{item.category}</Text>
-                    ) : null}
-                    <Text style={styles.rowSub}>
-                      {item.sku ? `SKU: ${item.sku}` : 'No SKU'}
-                    </Text>
-                    <Text style={[styles.rowStock, isOOS && styles.rowStockOOS, isLow && styles.rowStockLow]}>
-                      {item.has_variants ? t('products.seeVariants') : t('products.inStock', { count: item.stock })}
-                      {isLow && !isOOS ? ' ⚠' : ''}
-                      {isOOS ? ` ${t('products.outOfStock')}` : ''}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.rowRight}>
-                  {margin !== null && (
-                    <View style={styles.marginBadge}>
-                      <Text style={styles.marginBadgeText}>{margin}%</Text>
-                    </View>
-                  )}
-                  <Text style={styles.rowPrice}>{formatCurrency(item.price)}</Text>
-                  <View style={styles.rowActions}>
-                    <TouchableOpacity onPress={() => openVariantManager(item)} style={styles.iconBtn}>
-                      <Ionicons name="options-outline" size={17} color={item.has_variants ? '#7c3aed' : '#cbd5e1'} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => openEdit(item)} style={styles.iconBtn}>
-                      <Ionicons name="pencil-outline" size={17} color="#64748b" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(item)} style={styles.iconBtn}>
-                      <Ionicons name="trash-outline" size={17} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            );
-          }}
+          renderItem={renderProductRow}
+          windowSize={7}
+          maxToRenderPerBatch={10}
+          initialNumToRender={15}
+          removeClippedSubviews={Platform.OS !== 'web'}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="cube-outline" size={40} color="#e2e8f0" />

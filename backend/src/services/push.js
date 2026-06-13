@@ -49,4 +49,4 @@ async function sendLowStockPush(db, tenantId, product) {
   });
 }
 
-module.exports = { sendPush, sendLowStockPush };
+module.exports = { sendPush, sendLowStockPush, shouldAlert, _alerted: alerted };
