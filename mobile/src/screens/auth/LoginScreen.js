@@ -6,6 +6,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_ORIGIN } from '../../services/api';
+import { F } from '../../theme';
 
 const API = BASE_ORIGIN;
 
@@ -85,19 +86,34 @@ export default function LoginScreen({ navigation }) {
           {loading ? (
             <ActivityIndicator size="large" color="#1a56db" style={{ marginTop: 20 }} />
           ) : (
-            <TouchableOpacity style={styles.btn} onPress={handleLogin}>
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={handleLogin}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+            >
               <Text style={styles.btnText}>{t('auth.login.signIn')}</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('RegisterShop')}>
+        <TouchableOpacity
+          style={styles.link}
+          onPress={() => navigation.navigate('RegisterShop')}
+          accessibilityRole="button"
+          accessibilityLabel="Create a new shop"
+        >
           <Text style={styles.linkText}>
             {t('auth.login.noShop')} <Text style={styles.linkBold}>{t('auth.login.createOne')}</Text>
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Forgot')}>
+        <TouchableOpacity
+          style={styles.link}
+          onPress={() => navigation.navigate('Forgot')}
+          accessibilityRole="button"
+          accessibilityLabel="Recover your password"
+        >
           <Text style={styles.linkText}>
             {t('auth.login.forgotLink')} <Text style={styles.linkBold}>{t('auth.login.recoverLink')}</Text>
           </Text>
@@ -120,16 +136,16 @@ function Field({ label, error, ...props }) {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: '#f3f4f6', padding: 24, paddingTop: 72 },
   header: { alignItems: 'center', marginBottom: 36 },
-  logo: { fontSize: 36, fontWeight: '800', color: '#1a56db', letterSpacing: -1 },
-  subtitle: { fontSize: 16, color: '#6b7280', marginTop: 6 },
+  logo: { fontSize: 36, fontFamily: F.black, color: '#1a56db', letterSpacing: -1 },
+  subtitle: { fontSize: 16, fontFamily: F.regular, color: '#6b7280', marginTop: 6 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  label: { fontSize: 13, fontFamily: F.semiBold, color: '#374151', marginBottom: 6 },
   input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15 },
   inputError: { borderColor: '#ef4444' },
   errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
   btn: { backgroundColor: '#1a56db', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnText: { color: '#fff', fontSize: 16, fontFamily: F.bold },
   link: { marginTop: 24, alignItems: 'center' },
   linkText: { color: '#6b7280', fontSize: 14 },
-  linkBold: { color: '#1a56db', fontWeight: '700' },
+  linkBold: { color: '#1a56db', fontFamily: F.bold },
 });

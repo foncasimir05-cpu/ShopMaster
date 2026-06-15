@@ -85,19 +85,25 @@ export default function CustomersScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.heading}>{t('customers.title')}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
-          <Ionicons name="person-add" size={16} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openAdd}
+          accessibilityRole="button"
+          accessibilityLabel="Add new customer"
+        >
+          <Ionicons name="person-add" size={16} color="#fff" importantForAccessibility="no" />
           <Text style={styles.addBtnText}>{t('customers.add')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchRow}>
-        <Ionicons name="search" size={16} color="#9ca3af" style={{ marginRight: 6 }} />
+        <Ionicons name="search" size={16} color="#9ca3af" style={{ marginRight: 6 }} importantForAccessibility="no" />
         <TextInput
           style={styles.searchInput}
           placeholder={t('customers.searchPlaceholder')}
           value={search}
           onChangeText={handleSearch}
+          accessibilityLabel="Search customers"
         />
       </View>
 
@@ -110,26 +116,32 @@ export default function CustomersScreen() {
           contentContainerStyle={{ padding: 12 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCustomers(''); }} />}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.customerCard} onPress={() => openDetail(item)} activeOpacity={0.7}>
-              <View style={styles.avatar}>
+            <TouchableOpacity
+              style={styles.customerCard}
+              onPress={() => openDetail(item)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}${item.phone ? ', ' + item.phone : ''}, ${item.loyalty_points} loyalty points, ${item.visit_count} visits, ${formatCurrency(item.total_spent)} total spent`}
+            >
+              <View style={styles.avatar} importantForAccessibility="no">
                 <Text style={styles.avatarText}>{item.name[0].toUpperCase()}</Text>
               </View>
-              <View style={styles.customerInfo}>
+              <View style={styles.customerInfo} importantForAccessibility="no">
                 <Text style={styles.customerName}>{item.name}</Text>
                 {item.phone ? <Text style={styles.customerSub}>{item.phone}</Text> : null}
                 <View style={styles.customerStats}>
                   <View style={styles.statPill}>
-                    <Ionicons name="star" size={10} color="#d97706" />
+                    <Ionicons name="star" size={10} color="#d97706" importantForAccessibility="no" />
                     <Text style={styles.statText}>{item.loyalty_points} {t('customers.pts')}</Text>
                   </View>
                   <View style={styles.statPill}>
-                    <Ionicons name="cart" size={10} color="#1a56db" />
+                    <Ionicons name="cart" size={10} color="#1a56db" importantForAccessibility="no" />
                     <Text style={styles.statText}>{item.visit_count} {t('customers.visits')}</Text>
                   </View>
                   <Text style={styles.statSpent}>{formatCurrency(item.total_spent)}</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+              <Ionicons name="chevron-forward" size={16} color="#d1d5db" importantForAccessibility="no" />
             </TouchableOpacity>
           )}
           ListEmptyComponent={
@@ -155,6 +167,7 @@ export default function CustomersScreen() {
               onChangeText={v => setForm(f => ({ ...f, name: v }))}
               placeholder="e.g. Jean-Pierre"
               autoFocus
+              accessibilityLabel="Customer full name"
             />
 
             <Text style={styles.fieldLabel}>{t('common.phone')}</Text>
@@ -164,6 +177,7 @@ export default function CustomersScreen() {
               onChangeText={v => setForm(f => ({ ...f, phone: v }))}
               placeholder="+237 6XX XXX XXX"
               keyboardType="phone-pad"
+              accessibilityLabel="Customer phone number"
             />
 
             <Text style={styles.fieldLabel}>{t('common.email')}</Text>
@@ -174,13 +188,27 @@ export default function CustomersScreen() {
               placeholder="customer@email.com"
               keyboardType="email-address"
               autoCapitalize="none"
+              accessibilityLabel="Customer email address"
             />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setFormVisible(false)} disabled={saving}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setFormVisible(false)}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
                 <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleSave}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel={editCustomer ? 'Update customer' : 'Create customer'}
+                accessibilityState={{ disabled: saving }}
+              >
                 {saving ? <ActivityIndicator color="#fff" size="small" />
                   : <Text style={styles.saveBtnText}>{editCustomer ? t('customers.update') : t('customers.create')}</Text>}
               </TouchableOpacity>
@@ -204,8 +232,13 @@ export default function CustomersScreen() {
                     {detailCustomer.phone ? <Text style={styles.detailSub}>{detailCustomer.phone}</Text> : null}
                     {detailCustomer.email ? <Text style={styles.detailSub}>{detailCustomer.email}</Text> : null}
                   </View>
-                  <TouchableOpacity onPress={() => openEdit(detailCustomer)} style={styles.editIcon}>
-                    <Ionicons name="pencil" size={16} color="#1a56db" />
+                  <TouchableOpacity
+                    onPress={() => openEdit(detailCustomer)}
+                    style={styles.editIcon}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${detailCustomer.name}`}
+                  >
+                    <Ionicons name="pencil" size={16} color="#1a56db" importantForAccessibility="no" />
                   </TouchableOpacity>
                 </View>
 
@@ -234,7 +267,12 @@ export default function CustomersScreen() {
                   }
                 </ScrollView>
 
-                <TouchableOpacity style={styles.closeBtn} onPress={() => setDetailCustomer(null)}>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => setDetailCustomer(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close customer details"
+                >
                   <Text style={styles.closeBtnText}>{t('common.close')}</Text>
                 </TouchableOpacity>
               </>

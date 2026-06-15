@@ -100,12 +100,22 @@ export default function PromotionsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('promotions.title')}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Ionicons name="add" size={22} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Add new promotion"
+        >
+          <Ionicons name="add" size={22} color="#fff" importantForAccessibility="no" />
         </TouchableOpacity>
       </View>
 
@@ -137,11 +147,21 @@ export default function PromotionsScreen({ navigation }) {
                   {item.expires_at ? ` · ${t('promotions.expiresLabel', { date: item.expires_at.slice(0, 10) })}` : ''}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
-                <Ionicons name="pencil" size={16} color="#1a2e4a" />
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => openEdit(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${item.name}`}
+              >
+                <Ionicons name="pencil" size={16} color="#1a2e4a" importantForAccessibility="no" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.name)}>
-                <Ionicons name="trash" size={16} color="#dc2626" />
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDelete(item.id, item.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${item.name}`}
+              >
+                <Ionicons name="trash" size={16} color="#dc2626" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           )}
@@ -154,8 +174,12 @@ export default function PromotionsScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{editingId ? t('promotions.editPromo') : t('promotions.newPromo')}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close form"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -177,12 +201,15 @@ export default function PromotionsScreen({ navigation }) {
 
               <View style={styles.field}>
                 <Text style={styles.label}>{t('promotions.discountType')}</Text>
-                <View style={styles.typeRow}>
+                <View style={styles.typeRow} accessibilityRole="radiogroup">
                   {['percent', 'flat'].map(tp => (
                     <TouchableOpacity
                       key={tp}
                       style={[styles.typePill, form.type === tp && styles.typePillActive]}
                       onPress={() => setForm(p => ({ ...p, type: tp }))}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: form.type === tp }}
+                      accessibilityLabel={tp === 'percent' ? t('promotions.percentType') : t('promotions.flatType')}
                     >
                       <Text style={[styles.typePillText, form.type === tp && styles.typePillTextActive]}>
                         {tp === 'percent' ? t('promotions.percentType') : t('promotions.flatType')}
@@ -234,7 +261,14 @@ export default function PromotionsScreen({ navigation }) {
               </View>
             </ScrollView>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleSave}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={saving ? 'Saving promotion' : editingId ? 'Update promotion' : 'Save new promotion'}
+              accessibilityState={{ disabled: saving }}
+            >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('promotions.savePromo')}</Text>}
             </TouchableOpacity>
           </View>

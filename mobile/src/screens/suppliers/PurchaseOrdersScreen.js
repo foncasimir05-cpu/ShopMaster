@@ -151,21 +151,34 @@ export default function PurchaseOrdersScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('purchases.title')}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Ionicons name="add" size={22} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Create new purchase order"
+        >
+          <Ionicons name="add" size={22} color="#fff" importantForAccessibility="no" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ gap: 8, paddingHorizontal: 12 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ gap: 8, paddingHorizontal: 12 }} accessibilityRole="radiogroup">
         {STATUS_KEYS.map(s => (
           <TouchableOpacity
             key={s}
             style={[styles.filterPill, statusFilter === s && styles.filterPillActive]}
             onPress={() => setStatusFilter(s)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: statusFilter === s }}
+            accessibilityLabel={t(`purchases.status.${s}`)}
           >
             <Text style={[styles.filterText, statusFilter === s && styles.filterTextActive]}>
               {t(`purchases.status.${s}`)}
@@ -200,14 +213,24 @@ export default function PurchaseOrdersScreen({ navigation }) {
               </View>
               <View style={styles.cardActions}>
                 {item.status !== 'received' && (
-                  <TouchableOpacity style={styles.receiveBtn} onPress={() => openReceive(item)}>
-                    <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                  <TouchableOpacity
+                    style={styles.receiveBtn}
+                    onPress={() => openReceive(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Receive stock for PO ${item.id.slice(0, 8).toUpperCase()}`}
+                  >
+                    <Ionicons name="checkmark-circle" size={14} color="#fff" importantForAccessibility="no" />
                     <Text style={styles.receiveBtnText}>{t('purchases.receive')}</Text>
                   </TouchableOpacity>
                 )}
                 {item.status === 'pending' && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-                    <Ionicons name="trash" size={16} color="#dc2626" />
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete this purchase order"
+                  >
+                    <Ionicons name="trash" size={16} color="#dc2626" importantForAccessibility="no" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -223,8 +246,12 @@ export default function PurchaseOrdersScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{t('purchases.newPurchaseOrder')}</Text>
-              <TouchableOpacity onPress={() => setCreateVisible(false)}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setCreateVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close form"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
 
@@ -258,12 +285,13 @@ export default function PurchaseOrdersScreen({ navigation }) {
                   placeholder={t('purchases.searchProduct')}
                   value={productSearch}
                   onChangeText={searchProducts}
+                  accessibilityLabel="Search products to add"
                 />
               </View>
               {productResults.length > 0 && (
                 <View style={styles.searchResults}>
                   {productResults.slice(0, 5).map(p => (
-                    <TouchableOpacity key={p.id} style={styles.searchResultRow} onPress={() => addPoItem(p)}>
+                    <TouchableOpacity key={p.id} style={styles.searchResultRow} onPress={() => addPoItem(p)} accessibilityRole="button" accessibilityLabel={`Add ${p.name} to order`}>
                       <Text style={styles.searchResultName}>{p.name}</Text>
                       <Text style={styles.searchResultSub}>{p.sku ?? ''} · {t('purchases.stockLabel', { count: p.stock })}</Text>
                     </TouchableOpacity>
@@ -298,8 +326,13 @@ export default function PurchaseOrdersScreen({ navigation }) {
                       />
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => removePoItem(item.productId)} style={{ paddingLeft: 8 }}>
-                    <Ionicons name="close-circle" size={20} color="#dc2626" />
+                  <TouchableOpacity
+                    onPress={() => removePoItem(item.productId)}
+                    style={{ paddingLeft: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${item.name} from order`}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#dc2626" importantForAccessibility="no" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -316,7 +349,14 @@ export default function PurchaseOrdersScreen({ navigation }) {
               </View>
             </ScrollView>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleCreate} disabled={creating}>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleCreate}
+              disabled={creating}
+              accessibilityRole="button"
+              accessibilityLabel={creating ? 'Creating order' : 'Create purchase order'}
+              accessibilityState={{ disabled: creating }}
+            >
               {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('purchases.createOrder')}</Text>}
             </TouchableOpacity>
           </View>
@@ -329,8 +369,12 @@ export default function PurchaseOrdersScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{t('purchases.receiveStock')}</Text>
-              <TouchableOpacity onPress={() => setReceiveVisible(false)}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setReceiveVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close receive stock form"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
             <Text style={styles.receiveHint}>{t('purchases.receiveHint')}</Text>
@@ -361,7 +405,14 @@ export default function PurchaseOrdersScreen({ navigation }) {
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleReceive} disabled={receiving}>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleReceive}
+              disabled={receiving}
+              accessibilityRole="button"
+              accessibilityLabel={receiving ? 'Confirming receipt' : 'Confirm stock receipt'}
+              accessibilityState={{ disabled: receiving }}
+            >
               {receiving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('purchases.confirmReceipt')}</Text>}
             </TouchableOpacity>
           </View>

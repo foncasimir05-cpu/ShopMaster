@@ -126,14 +126,21 @@ export default function SalesHistoryScreen() {
           placeholder={t('sales.from')}
           value={startDate}
           onChangeText={setStartDate}
+          accessibilityLabel="From date, YYYY-MM-DD format"
         />
         <TextInput
           style={styles.dateInput}
           placeholder={t('sales.to')}
           value={endDate}
           onChangeText={setEndDate}
+          accessibilityLabel="To date, YYYY-MM-DD format"
         />
-        <TouchableOpacity style={styles.filterBtn} onPress={applyFilter}>
+        <TouchableOpacity
+          style={styles.filterBtn}
+          onPress={applyFilter}
+          accessibilityRole="button"
+          accessibilityLabel="Apply date filter"
+        >
           <Text style={styles.filterBtnText}>{t('sales.filter')}</Text>
         </TouchableOpacity>
       </View>
@@ -163,8 +170,14 @@ export default function SalesHistoryScreen() {
               : null
           }
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.row} onPress={() => openDetail(item)} activeOpacity={0.7}>
-              <View style={styles.rowLeft}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => openDetail(item)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Sale #${item.id.slice(0, 8).toUpperCase()}, ${formatCurrency(item.total)}, ${item.status}, ${new Date(item.created_at).toLocaleString(i18n.language)}`}
+            >
+              <View style={styles.rowLeft} importantForAccessibility="no">
                 <Text style={styles.saleId}>#{item.id.slice(0, 8).toUpperCase()}</Text>
                 <Text style={styles.saleDate}>{new Date(item.created_at).toLocaleString(i18n.language)}</Text>
                 <Text style={styles.cashier}>{item.cashier_email}</Text>
@@ -177,9 +190,9 @@ export default function SalesHistoryScreen() {
                   )}
                 </View>
               </View>
-              <View style={styles.rowRight}>
+              <View style={styles.rowRight} importantForAccessibility="no">
                 <Text style={styles.saleTotal}>{formatCurrency(item.total)}</Text>
-                <Ionicons name="chevron-forward" size={14} color="#9ca3af" style={{ marginTop: 4 }} />
+                <Ionicons name="chevron-forward" size={14} color="#9ca3af" style={{ marginTop: 4 }} importantForAccessibility="no" />
               </View>
             </TouchableOpacity>
           )}
@@ -211,8 +224,13 @@ export default function SalesHistoryScreen() {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => setDetailSale(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setDetailSale(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close sale details"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
 
@@ -276,14 +294,24 @@ export default function SalesHistoryScreen() {
             {!loadingDetail && (
               <View style={styles.detailActions}>
                 {detailSale?.status === 'completed' && (
-                  <TouchableOpacity style={styles.printBtn} onPress={handlePrint}>
-                    <Ionicons name="print-outline" size={15} color="#fff" />
+                  <TouchableOpacity
+                    style={styles.printBtn}
+                    onPress={handlePrint}
+                    accessibilityRole="button"
+                    accessibilityLabel="Print receipt"
+                  >
+                    <Ionicons name="print-outline" size={15} color="#fff" importantForAccessibility="no" />
                     <Text style={styles.printBtnText}>{t('common.print')}</Text>
                   </TouchableOpacity>
                 )}
                 {detailSale?.status === 'completed' && (
-                  <TouchableOpacity style={styles.emailBtn} onPress={handleSendEmail}>
-                    <Ionicons name="mail-outline" size={15} color="#fff" />
+                  <TouchableOpacity
+                    style={styles.emailBtn}
+                    onPress={handleSendEmail}
+                    accessibilityRole="button"
+                    accessibilityLabel="Email receipt"
+                  >
+                    <Ionicons name="mail-outline" size={15} color="#fff" importantForAccessibility="no" />
                     <Text style={styles.printBtnText}>{t('common.email')}</Text>
                   </TouchableOpacity>
                 )}
@@ -291,6 +319,8 @@ export default function SalesHistoryScreen() {
                   <TouchableOpacity
                     style={styles.voidBtn}
                     onPress={() => { const s = detailSale; setDetailSale(null); handleVoid(s); }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Void this sale"
                   >
                     <Text style={styles.voidBtnText}>{t('sales.detail.void')}</Text>
                   </TouchableOpacity>

@@ -128,33 +128,56 @@ export default function ExpensesScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{t('expenses.title')}</Text>
           {total > 0 && <Text style={styles.totalLine}>{t('expenses.totalLabel', { amount: formatCurrency(total) })}</Text>}
         </View>
-        <TouchableOpacity style={styles.summaryBtn} onPress={loadSummary}>
-          <Ionicons name="pie-chart-outline" size={18} color="#1a2e4a" />
+        <TouchableOpacity
+          style={styles.summaryBtn}
+          onPress={loadSummary}
+          accessibilityRole="button"
+          accessibilityLabel="View expense summary"
+        >
+          <Ionicons name="pie-chart-outline" size={18} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Ionicons name="add" size={22} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Add new expense"
+        >
+          <Ionicons name="add" size={22} color="#fff" importantForAccessibility="no" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>
-        <TextInput style={styles.dateInput} placeholder="From YYYY-MM-DD" value={startDate} onChangeText={setStartDate} />
-        <TextInput style={styles.dateInput} placeholder="To YYYY-MM-DD" value={endDate} onChangeText={setEndDate} />
-        <TouchableOpacity style={styles.filterBtn} onPress={load}>
+        <TextInput style={styles.dateInput} placeholder="From YYYY-MM-DD" value={startDate} onChangeText={setStartDate} accessibilityLabel="From date, YYYY-MM-DD format" />
+        <TextInput style={styles.dateInput} placeholder="To YYYY-MM-DD" value={endDate} onChangeText={setEndDate} accessibilityLabel="To date, YYYY-MM-DD format" />
+        <TouchableOpacity
+          style={styles.filterBtn}
+          onPress={load}
+          accessibilityRole="button"
+          accessibilityLabel="Apply date filter"
+        >
           <Text style={styles.filterBtnText}>{t('expenses.filter')}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ gap: 6, paddingHorizontal: 12 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ gap: 6, paddingHorizontal: 12 }} accessibilityRole="radiogroup">
         <TouchableOpacity
           style={[styles.catPill, !catFilter && styles.catPillActive]}
           onPress={() => setCatFilter('')}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: !catFilter }}
+          accessibilityLabel={t('expenses.all')}
         >
           <Text style={[styles.catText, !catFilter && styles.catTextActive]}>{t('expenses.all')}</Text>
         </TouchableOpacity>
@@ -163,6 +186,9 @@ export default function ExpensesScreen({ navigation }) {
             key={c}
             style={[styles.catPill, catFilter === c && styles.catPillActive]}
             onPress={() => setCatFilter(c)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: catFilter === c }}
+            accessibilityLabel={t(`expenses.categories.${c}`)}
           >
             <Text style={[styles.catText, catFilter === c && styles.catTextActive]}>{t(`expenses.categories.${c}`)}</Text>
           </TouchableOpacity>
@@ -189,11 +215,21 @@ export default function ExpensesScreen({ navigation }) {
                 {item.description ? <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text> : null}
               </View>
               <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
-              <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
-                <Ionicons name="pencil" size={15} color="#1a2e4a" />
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => openEdit(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${item.description || item.category} expense`}
+              >
+                <Ionicons name="pencil" size={15} color="#1a2e4a" importantForAccessibility="no" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.description)}>
-                <Ionicons name="trash" size={15} color="#dc2626" />
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDelete(item.id, item.description)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${item.description || item.category} expense`}
+              >
+                <Ionicons name="trash" size={15} color="#dc2626" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           )}
@@ -207,8 +243,12 @@ export default function ExpensesScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{editingId ? t('expenses.editExpense') : t('expenses.newExpense')}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close form"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
 
@@ -224,15 +264,18 @@ export default function ExpensesScreen({ navigation }) {
               />
 
               <Text style={styles.label}>{t('expenses.fields.category')}</Text>
-              <View style={styles.catGrid}>
+              <View style={styles.catGrid} accessibilityRole="radiogroup">
                 {CATEGORY_KEYS.map(c => (
                   <TouchableOpacity
                     key={c}
                     style={[styles.catGridItem, form.category === c && { borderColor: CAT_COLORS[c], backgroundColor: CAT_COLORS[c] + '15' }]}
                     onPress={() => setForm(p => ({ ...p, category: c }))}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: form.category === c }}
+                    accessibilityLabel={t(`expenses.categories.${c}`)}
                   >
-                    <Ionicons name={CAT_ICONS[c]} size={16} color={form.category === c ? CAT_COLORS[c] : '#9ca3af'} />
-                    <Text style={[styles.catGridText, form.category === c && { color: CAT_COLORS[c] }]}>{t(`expenses.categories.${c}`)}</Text>
+                    <Ionicons name={CAT_ICONS[c]} size={16} color={form.category === c ? CAT_COLORS[c] : '#9ca3af'} importantForAccessibility="no" />
+                    <Text style={[styles.catGridText, form.category === c && { color: CAT_COLORS[c] }]} importantForAccessibility="no">{t(`expenses.categories.${c}`)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -254,7 +297,14 @@ export default function ExpensesScreen({ navigation }) {
               />
             </ScrollView>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleSave}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={saving ? 'Saving expense' : editingId ? 'Update expense' : 'Save new expense'}
+              accessibilityState={{ disabled: saving }}
+            >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('expenses.saveExpense')}</Text>}
             </TouchableOpacity>
           </View>

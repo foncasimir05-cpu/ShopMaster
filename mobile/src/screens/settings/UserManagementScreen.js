@@ -87,26 +87,31 @@ export default function UserManagementScreen() {
           <TouchableOpacity
             style={styles.cardRow}
             onPress={() => setExpandedId(expandedId === member.id ? null : member.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${member.name}, ${member.role}${!member.is_active ? ', inactive' : ''}. Tap to ${expandedId === member.id ? 'collapse' : 'expand'} options.`}
           >
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1 }} importantForAccessibility="no">
               <Text style={styles.memberName}>{member.name}</Text>
               <Text style={styles.memberEmail}>{member.email}</Text>
             </View>
-            <View style={[styles.roleBadge, { backgroundColor: ROLE_COLOR[member.role] ?? '#6b7280' }]}>
+            <View style={[styles.roleBadge, { backgroundColor: ROLE_COLOR[member.role] ?? '#6b7280' }]} importantForAccessibility="no">
               <Text style={styles.roleBadgeText}>{t(`users.roles.${member.role}`, { defaultValue: member.role })}</Text>
             </View>
-            {!member.is_active && <Text style={styles.inactiveTag}>{t('users.inactive')}</Text>}
+            {!member.is_active && <Text style={styles.inactiveTag} importantForAccessibility="no">{t('users.inactive')}</Text>}
           </TouchableOpacity>
 
           {expandedId === member.id && member.is_active && (
             <View style={styles.expandedPanel}>
               <Text style={styles.expandedLabel}>{t('users.changeRole')}</Text>
-              <View style={styles.roleRow}>
+              <View style={styles.roleRow} accessibilityRole="radiogroup">
                 {ROLES.map(r => (
                   <TouchableOpacity
                     key={r}
                     style={[styles.roleChip, member.role === r && styles.roleChipActive]}
                     onPress={() => handleRoleChange(member, r)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: member.role === r }}
+                    accessibilityLabel={t(`users.roles.${r}`, { defaultValue: r })}
                   >
                     <Text style={[styles.roleChipText, member.role === r && styles.roleChipTextActive]}>
                       {t(`users.roles.${r}`, { defaultValue: r })}
@@ -115,7 +120,12 @@ export default function UserManagementScreen() {
                 ))}
               </View>
               {member.id !== me?.id && (
-                <TouchableOpacity style={styles.deactivateBtn} onPress={() => handleDeactivate(member.id)}>
+                <TouchableOpacity
+                  style={styles.deactivateBtn}
+                  onPress={() => handleDeactivate(member.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Deactivate ${member.name}`}
+                >
                   <Text style={styles.deactivateBtnText}>{t('users.deactivate')}</Text>
                 </TouchableOpacity>
               )}
@@ -125,23 +135,31 @@ export default function UserManagementScreen() {
       ))}
 
       {!showAdd ? (
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setShowAdd(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add new staff member"
+        >
           <Text style={styles.addBtnText}>+ {t('users.addStaff')}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.addForm}>
           <Text style={styles.addFormTitle}>{t('users.newStaffMember')}</Text>
-          <Field label={t('users.fields.name')} value={newName} onChangeText={setNewName} placeholder="Jane Smith" />
-          <Field label={t('users.fields.email')} value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" placeholder="jane@example.com" />
-          <Field label={t('users.fields.password')} value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Min. 8 characters" />
+          <Field label={t('users.fields.name')} value={newName} onChangeText={setNewName} placeholder="Jane Smith" accessibilityLabel="Staff member name" />
+          <Field label={t('users.fields.email')} value={newEmail} onChangeText={setNewEmail} keyboardType="email-address" autoCapitalize="none" placeholder="jane@example.com" accessibilityLabel="Staff member email" />
+          <Field label={t('users.fields.password')} value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Min. 8 characters" accessibilityLabel="Staff member password" />
 
           <Text style={styles.label}>{t('users.fields.role')}</Text>
-          <View style={styles.roleRow}>
+          <View style={styles.roleRow} accessibilityRole="radiogroup">
             {ROLES.map(r => (
               <TouchableOpacity
                 key={r}
                 style={[styles.roleChip, newRole === r && styles.roleChipActive]}
                 onPress={() => setNewRole(r)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: newRole === r }}
+                accessibilityLabel={t(`users.roles.${r}`, { defaultValue: r })}
               >
                 <Text style={[styles.roleChipText, newRole === r && styles.roleChipTextActive]}>
                   {t(`users.roles.${r}`, { defaultValue: r })}
@@ -153,10 +171,22 @@ export default function UserManagementScreen() {
           {addError ? <Text style={styles.errorText}>{addError}</Text> : null}
 
           <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowAdd(false); setAddError(''); }}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => { setShowAdd(false); setAddError(''); }}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel adding staff"
+            >
               <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, adding && styles.saveBtnDisabled]} onPress={handleAdd} disabled={adding}>
+            <TouchableOpacity
+              style={[styles.saveBtn, adding && styles.saveBtnDisabled]}
+              onPress={handleAdd}
+              disabled={adding}
+              accessibilityRole="button"
+              accessibilityLabel={adding ? 'Adding staff member' : 'Add staff member'}
+              accessibilityState={{ disabled: adding }}
+            >
               <Text style={styles.saveBtnText}>{adding ? t('users.adding') : t('users.addStaff')}</Text>
             </TouchableOpacity>
           </View>

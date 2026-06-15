@@ -111,12 +111,17 @@ export default function PremiumScreen({ navigation }) {
   if (step === 'success') {
     return (
       <View style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <View style={styles.centerBox}>
           <View style={styles.successIcon}>
-            <Ionicons name="star" size={40} color="#d97706" />
+            <Ionicons name="star" size={40} color="#d97706" importantForAccessibility="no" />
           </View>
           <Text style={styles.successTitle}>Premium Active!</Text>
           {expiresAt && (
@@ -125,12 +130,17 @@ export default function PremiumScreen({ navigation }) {
           <View style={styles.featureList}>
             {FEATURES.map(f => (
               <View key={f} style={styles.featureRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                <Ionicons name="checkmark-circle" size={16} color="#059669" importantForAccessibility="no" />
                 <Text style={styles.featureText}>{f}</Text>
               </View>
             ))}
           </View>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('SubShops')}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => navigation.navigate('SubShops')}
+            accessibilityRole="button"
+            accessibilityLabel="Manage branches"
+          >
             <Text style={styles.primaryBtnText}>Manage Branches →</Text>
           </TouchableOpacity>
         </View>
@@ -142,8 +152,13 @@ export default function PremiumScreen({ navigation }) {
   if (step === 'pending') {
     return (
       <View style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color="#d97706" />
@@ -153,7 +168,7 @@ export default function PremiumScreen({ navigation }) {
             Open your mobile money app and approve the request.
           </Text>
           <View style={styles.infoBox}>
-            <Ionicons name="phone-portrait-outline" size={18} color="#1a2e4a" />
+            <Ionicons name="phone-portrait-outline" size={18} color="#1a2e4a" importantForAccessibility="no" />
             <Text style={styles.infoBoxText}>
               Amount: <Text style={{ fontWeight: '700' }}>
                 {selectedPlan === 'monthly' ? '9,000' : '108,000'} XAF
@@ -161,7 +176,12 @@ export default function PremiumScreen({ navigation }) {
             </Text>
           </View>
           <Text style={styles.pollHint}>Checking status… ({pollCount} checks)</Text>
-          <TouchableOpacity style={styles.cancelLink} onPress={() => { clearInterval(pollRef.current); setStep('select'); }}>
+          <TouchableOpacity
+            style={styles.cancelLink}
+            onPress={() => { clearInterval(pollRef.current); setStep('select'); }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel payment"
+          >
             <Text style={styles.cancelLinkText}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -173,16 +193,26 @@ export default function PremiumScreen({ navigation }) {
   if (step === 'failed') {
     return (
       <View style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <View style={styles.centerBox}>
           <View style={styles.failIcon}>
-            <Ionicons name="close-circle" size={48} color="#dc2626" />
+            <Ionicons name="close-circle" size={48} color="#dc2626" importantForAccessibility="no" />
           </View>
           <Text style={styles.failTitle}>Payment Failed</Text>
           <Text style={styles.failSub}>The payment was declined or timed out. Please try again.</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep('select')}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => setStep('select')}
+            accessibilityRole="button"
+            accessibilityLabel="Try payment again"
+          >
             <Text style={styles.primaryBtnText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -193,8 +223,13 @@ export default function PremiumScreen({ navigation }) {
   // ── SELECT PLAN ──────────────────────────────────────────────────────────────
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={styles.backBtn}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
       </TouchableOpacity>
 
       <View style={styles.heroRow}>
@@ -219,6 +254,9 @@ export default function PremiumScreen({ navigation }) {
           style={[styles.planCard, selectedPlan === plan.key && styles.planCardSelected]}
           onPress={() => setSelectedPlan(plan.key)}
           activeOpacity={0.8}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: selectedPlan === plan.key }}
+          accessibilityLabel={`${plan.label}, ${plan.price}, ${plan.sub}${plan.saving ? ', ' + plan.saving : ''}`}
         >
           <View style={styles.planLeft}>
             <View style={[styles.radio, selectedPlan === plan.key && styles.radioSelected]}>
@@ -252,6 +290,7 @@ export default function PremiumScreen({ navigation }) {
         onChangeText={setPhone}
         keyboardType="phone-pad"
         maxLength={15}
+        accessibilityLabel="Mobile money phone number"
       />
       <Text style={styles.hint}>We'll send a payment request to this number via MTN MoMo or Orange Money.</Text>
 
@@ -259,6 +298,9 @@ export default function PremiumScreen({ navigation }) {
         style={[styles.payBtn, loading && styles.payBtnDisabled]}
         onPress={handlePay}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel={`Pay ${selectedPlan === 'monthly' ? '9,000' : '108,000'} XAF via mobile money`}
+        accessibilityState={{ disabled: loading }}
       >
         {loading
           ? <ActivityIndicator color="#fff" />

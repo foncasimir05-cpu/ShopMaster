@@ -91,22 +91,33 @@ export default function SuppliersScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('suppliers.title')}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Ionicons name="add" size={22} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Add new supplier"
+        >
+          <Ionicons name="add" size={22} color="#fff" importantForAccessibility="no" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchRow}>
-        <Ionicons name="search" size={16} color="#9ca3af" />
+        <Ionicons name="search" size={16} color="#9ca3af" importantForAccessibility="no" />
         <TextInput
           style={styles.searchInput}
           placeholder={t('suppliers.searchPlaceholder')}
           value={search}
           onChangeText={q => { setSearch(q); load(q); }}
+          accessibilityLabel="Search suppliers"
         />
       </View>
 
@@ -127,11 +138,21 @@ export default function SuppliersScreen({ navigation }) {
                 {item.contact ? <Text style={styles.cardSub}>{item.contact}</Text> : null}
                 {item.phone ? <Text style={styles.cardSub}>{item.phone}</Text> : null}
               </View>
-              <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
-                <Ionicons name="pencil" size={16} color="#1a2e4a" />
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => openEdit(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${item.name}`}
+              >
+                <Ionicons name="pencil" size={16} color="#1a2e4a" importantForAccessibility="no" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.name)}>
-                <Ionicons name="trash" size={16} color="#dc2626" />
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDelete(item.id, item.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${item.name}`}
+              >
+                <Ionicons name="trash" size={16} color="#dc2626" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           )}
@@ -144,8 +165,12 @@ export default function SuppliersScreen({ navigation }) {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{editingId ? t('suppliers.editSupplier') : t('suppliers.newSupplier')}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close form"
+              >
+                <Ionicons name="close" size={22} color="#6b7280" importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -162,7 +187,14 @@ export default function SuppliersScreen({ navigation }) {
                 </View>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={handleSave}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={editingId ? 'Update supplier' : 'Save new supplier'}
+              accessibilityState={{ disabled: saving }}
+            >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('suppliers.saveSupplier')}</Text>}
             </TouchableOpacity>
           </View>

@@ -69,6 +69,7 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
                 keyboardType="numeric"
                 placeholder="0.00"
                 autoFocus
+                accessibilityLabel="Cash tendered amount"
               />
               {tenderedNum > 0 && (
                 <View style={styles.changeRow}>
@@ -82,13 +83,23 @@ export default function PaymentModal({ visible, total, paymentMethod, onConfirm,
           )}
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={onCancel}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel payment"
+              accessibilityState={{ disabled: loading }}
+            >
               <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.confirmBtn, !canCharge && styles.confirmBtnDisabled]}
               onPress={handleConfirm}
               disabled={!canCharge || loading}
+              accessibilityRole="button"
+              accessibilityLabel={paymentMethod === 'cash' ? `Collect ${formatCurrency(total)} cash` : `Confirm ${formatCurrency(total)} payment`}
+              accessibilityState={{ disabled: !canCharge || loading }}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />

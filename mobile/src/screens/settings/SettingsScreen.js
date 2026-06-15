@@ -129,6 +129,7 @@ export default function SettingsScreen() {
             onValueChange={setTaxEnabled}
             trackColor={{ false: '#d1d5db', true: '#1a2e4a' }}
             thumbColor="#fff"
+            accessibilityLabel="Enable tax"
           />
         </View>
         {taxEnabled && (
@@ -141,12 +142,15 @@ export default function SettingsScreen() {
 
       <Section title={t('settings.sections.currency')}>
         <Text style={styles.label}>{t('settings.fields.currencySymbol')}</Text>
-        <View style={styles.currencyGrid}>
+        <View style={styles.currencyGrid} accessibilityRole="radiogroup">
           {CURRENCIES.map(c => (
             <TouchableOpacity
               key={c.code}
               style={[styles.currencyChip, currency === c.code && styles.currencyChipActive]}
               onPress={() => setCurrency(c.code)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: currency === c.code }}
+              accessibilityLabel={`${c.code} — ${c.name}`}
             >
               <Text style={[styles.currencyChipCode, currency === c.code && styles.currencyChipCodeActive]}>{c.code}</Text>
               <Text style={[styles.currencyChipName, currency === c.code && styles.currencyChipNameActive]} numberOfLines={1}>{c.name}</Text>
@@ -170,12 +174,15 @@ export default function SettingsScreen() {
       {/* Language switcher */}
       <Section title={t('settings.sections.language')}>
         <Text style={styles.label}>{t('settings.language.label')}</Text>
-        <View style={styles.langRow}>
+        <View style={styles.langRow} accessibilityRole="radiogroup">
           {['en', 'fr'].map(lang => (
             <TouchableOpacity
               key={lang}
               style={[styles.langBtn, i18n.language === lang && styles.langBtnActive]}
               onPress={() => changeLanguage(lang)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: i18n.language === lang }}
+              accessibilityLabel={lang === 'en' ? 'English' : 'Français'}
             >
               <Text style={[styles.langBtnText, i18n.language === lang && styles.langBtnTextActive]}>
                 {lang === 'en' ? '🇬🇧 English' : '🇫🇷 Français'}
@@ -186,7 +193,12 @@ export default function SettingsScreen() {
       </Section>
 
       {user?.role === 'admin' && (
-        <TouchableOpacity style={styles.staffBtn} onPress={() => navigation.navigate('UserManagement')}>
+        <TouchableOpacity
+          style={styles.staffBtn}
+          onPress={() => navigation.navigate('UserManagement')}
+          accessibilityRole="button"
+          accessibilityLabel="Manage staff"
+        >
           <Text style={styles.staffBtnText}>{t('settings.manageStaff')}</Text>
         </TouchableOpacity>
       )}
@@ -205,12 +217,17 @@ export default function SettingsScreen() {
                 </Text>
               )}
             </View>
-            <TouchableOpacity style={styles.branchesBtn} onPress={() => navigation.navigate('SubShops')}>
-              <View style={styles.branchesBtnLeft}>
-                <Ionicons name="storefront-outline" size={20} color="#1a2e4a" />
+            <TouchableOpacity
+              style={styles.branchesBtn}
+              onPress={() => navigation.navigate('SubShops')}
+              accessibilityRole="button"
+              accessibilityLabel="Manage branches"
+            >
+              <View style={styles.branchesBtnLeft} importantForAccessibility="no">
+                <Ionicons name="storefront-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
                 <Text style={styles.branchesBtnText}>{t('settings.manageBranches')}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#1a2e4a" />
+              <Ionicons name="chevron-forward" size={18} color="#1a2e4a" importantForAccessibility="no" />
             </TouchableOpacity>
           </>
         ) : (
@@ -228,6 +245,8 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={styles.upgradeBtn}
               onPress={() => navigation.navigate('Premium')}
+              accessibilityRole="button"
+              accessibilityLabel="Activate premium subscription"
             >
               <Text style={styles.upgradeBtnText}>{t('settings.premium.activate')}</Text>
             </TouchableOpacity>
@@ -235,11 +254,16 @@ export default function SettingsScreen() {
         )
       )}
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={() => Alert.alert(
-        t('settings.logoutTitle'),
-        t('settings.logoutConfirm'),
-        [{ text: t('common.cancel'), style: 'cancel' }, { text: t('settings.logout'), style: 'destructive', onPress: logout }]
-      )}>
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={() => Alert.alert(
+          t('settings.logoutTitle'),
+          t('settings.logoutConfirm'),
+          [{ text: t('common.cancel'), style: 'cancel' }, { text: t('settings.logout'), style: 'destructive', onPress: logout }]
+        )}
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
+      >
         <Text style={styles.logoutBtnText}>{t('settings.logout')}</Text>
       </TouchableOpacity>
 
@@ -250,6 +274,9 @@ export default function SettingsScreen() {
         style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
         onPress={handleSave}
         disabled={saving}
+        accessibilityRole="button"
+        accessibilityLabel={saving ? 'Saving settings' : 'Save settings'}
+        accessibilityState={{ disabled: saving }}
       >
         <Text style={styles.saveBtnText}>{saving ? t('settings.saving') : t('settings.saveSettings')}</Text>
       </TouchableOpacity>
@@ -279,7 +306,13 @@ function InfoRow({ label, value }) {
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.infoRow} onPress={copy} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.infoRow}
+        onPress={copy}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Copy shop ID to clipboard"
+      >
         <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">{value}</Text>
         <Text style={styles.copyHint}>{t('common.ok')}</Text>
       </TouchableOpacity>

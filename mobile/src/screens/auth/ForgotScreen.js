@@ -119,8 +119,13 @@ export default function ForgotScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity onPress={goBack} style={styles.back}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={goBack}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
 
         <View style={styles.header}>
@@ -146,11 +151,17 @@ export default function ForgotScreen({ navigation }) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Your email address"
               />
               {sending ? (
                 <ActivityIndicator size="large" color="#1a2e4a" style={{ marginTop: 20 }} />
               ) : (
-                <TouchableOpacity style={styles.btn} onPress={handleSend}>
+                <TouchableOpacity
+                  style={styles.btn}
+                  onPress={handleSend}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue"
+                >
                   <Text style={styles.btnText}>{t('auth.forgot.continue')}</Text>
                 </TouchableOpacity>
               )}
@@ -174,11 +185,22 @@ export default function ForgotScreen({ navigation }) {
                 placeholder="123456"
                 keyboardType="number-pad"
                 maxLength={6}
+                accessibilityLabel="One-time password code"
               />
-              <TouchableOpacity style={styles.btn} onPress={handleOtpNext}>
+              <TouchableOpacity
+                style={styles.btn}
+                onPress={handleOtpNext}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with code"
+              >
                 <Text style={styles.btnText}>{t('auth.forgot.continue')} →</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.resendBtn} onPress={() => { setStep('email'); setOtp(''); }}>
+              <TouchableOpacity
+                style={styles.resendBtn}
+                onPress={() => { setStep('email'); setOtp(''); }}
+                accessibilityRole="button"
+                accessibilityLabel="Resend verification code"
+              >
                 <Text style={styles.resendText}>{t('auth.forgot.resend')}</Text>
               </TouchableOpacity>
             </>
@@ -226,6 +248,9 @@ export default function ForgotScreen({ navigation }) {
                   style={[styles.btn, !securityQuestion && styles.btnDisabled]}
                   onPress={handleVerifyAnswer}
                   disabled={!securityQuestion}
+                  accessibilityRole="button"
+                  accessibilityLabel="Verify identity"
+                  accessibilityState={{ disabled: !securityQuestion }}
                 >
                   <Text style={styles.btnText}>{t('auth.forgot.verifyIdentity')}</Text>
                 </TouchableOpacity>
@@ -247,6 +272,7 @@ export default function ForgotScreen({ navigation }) {
                 onChangeText={setNewPassword}
                 placeholder={t('auth.forgot.newPasswordPlaceholder')}
                 secureTextEntry
+                accessibilityLabel="New password"
               />
               <Label>{t('auth.forgot.confirmPassword')}</Label>
               <TextInput
@@ -255,11 +281,17 @@ export default function ForgotScreen({ navigation }) {
                 onChangeText={setConfirmPassword}
                 placeholder={t('auth.forgot.confirmPasswordPlaceholder')}
                 secureTextEntry
+                accessibilityLabel="Confirm new password"
               />
               {resetting ? (
                 <ActivityIndicator size="large" color="#1a2e4a" style={{ marginTop: 20 }} />
               ) : (
-                <TouchableOpacity style={styles.btn} onPress={handleReset}>
+                <TouchableOpacity
+                  style={styles.btn}
+                  onPress={handleReset}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset password"
+                >
                   <Text style={styles.btnText}>{t('auth.forgot.resetPassword')}</Text>
                 </TouchableOpacity>
               )}
@@ -295,9 +327,12 @@ function ShopPicker({ shops, selected, onSelect, t }) {
           key={s.shopId}
           style={[styles.shopRow, selected === s.shopId && styles.shopRowSelected]}
           onPress={() => onSelect(s.shopId)}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: selected === s.shopId }}
+          accessibilityLabel={`${s.shopName}, ID: ${s.shopId}`}
         >
-          <View style={[styles.radio, selected === s.shopId && styles.radioSelected]} />
-          <View style={{ flex: 1 }}>
+          <View style={[styles.radio, selected === s.shopId && styles.radioSelected]} importantForAccessibility="no" />
+          <View style={{ flex: 1 }} importantForAccessibility="no">
             <Text style={styles.shopName}>{s.shopName}</Text>
             <Text style={styles.shopId}>{s.shopId}</Text>
           </View>

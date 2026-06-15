@@ -3,9 +3,11 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 import * as api from '../../services/api';
+import { F } from '../../theme';
 
 const METHOD_COLORS = {
   cash: '#16a34a',
@@ -31,14 +33,14 @@ export default function AnalyticsScreen() {
 
   const load = useCallback(async (days) => {
     try {
-      const [s, t, top, pay] = await Promise.all([
+      const [s, tr, top, pay] = await Promise.all([
         api.getAnalyticsSummary(),
         api.getAnalyticsTrend(days),
         api.getTopProducts(days),
         api.getPaymentBreakdown(days),
       ]);
       setSummary(s);
-      setTrend(t);
+      setTrend(tr);
       setTopProducts(top);
       setPaymentBreakdown(pay);
     } catch (e) {
@@ -54,6 +56,7 @@ export default function AnalyticsScreen() {
   const onRefresh = () => { setRefreshing(true); load(period.days); };
 
   const totalPaymentRevenue = paymentBreakdown.reduce((s, r) => s + r.revenue, 0);
+  const netProfit = summary?.month?.net_profit ?? 0;
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#1a56db" /></View>;
@@ -67,35 +70,81 @@ export default function AnalyticsScreen() {
     >
       <Text style={styles.heading}>{t('analytics.title')}</Text>
 
-      {/* KPI Cards */}
-      <View style={styles.kpiGrid}>
-        <KpiCard label={t('analytics.todayRevenue')} value={formatCurrency(summary?.today?.revenue ?? 0)} sub={`${summary?.today?.sales_count ?? 0} ${t('analytics.transactions')}`} color="#1a56db" />
-        <KpiCard label={t('analytics.todayProfit')} value={formatCurrency(summary?.today?.profit ?? 0)} sub={t('analytics.grossProfit')} color="#16a34a" />
-        <KpiCard label={t('analytics.thisWeek')} value={formatCurrency(summary?.week?.revenue ?? 0)} sub={`${summary?.week?.sales_count ?? 0} ${t('analytics.transactions')}`} color="#7c3aed" />
-        <KpiCard label={t('analytics.weekProfit')} value={formatCurrency(summary?.week?.profit ?? 0)} sub={t('analytics.grossProfit')} color="#059669" />
-        <KpiCard label={t('analytics.thisMonth')} value={formatCurrency(summary?.month?.revenue ?? 0)} sub={`${summary?.month?.sales_count ?? 0} ${t('analytics.transactions')}`} color="#0891b2" />
-        <KpiCard label={t('analytics.monthExpenses')} value={formatCurrency(summary?.month?.expenses ?? 0)} sub={t('analytics.totalExpensesLabel')} color="#dc2626" />
-        <KpiCard label={t('analytics.monthNetProfit')} value={formatCurrency(summary?.month?.net_profit ?? 0)} sub={t('analytics.afterExpenses')} color={summary?.month?.net_profit >= 0 ? '#059669' : '#dc2626'} />
-        <KpiCard label={t('analytics.avgSale')} value={formatCurrency(summary?.avgOrder30d ?? 0)} sub={t('analytics.last30Days')} color="#d97706" />
+      {/* ─── Today ─────────────────────────────────── */}
+      <SectionHead label="TODAY" color="#1a56db" />
+      <View style={styles.kpiRow}>
+        <KpiCard
+          icon="trending-up-outline"
+          iconColor="#1a56db"
+          label={t('analytics.revenue')}
+          value={formatCurrency(summary?.today?.revenue ?? 0)}
+          sub={`${summary?.today?.sales_count ?? 0} ${t('analytics.transactions')}`}
+        />
+        <KpiCard
+          icon="cash-outline"
+          iconColor="#16a34a"
+          label={t('analytics.profit')}
+          value={formatCurrency(summary?.today?.profit ?? 0)}
+          sub={t('analytics.grossProfit')}
+        />
       </View>
 
-      {/* Period selector */}
-      <View style={styles.periodRow}>
-        {PERIODS.map(p => (
-          <TouchableOpacity
-            key={p.days}
-            style={[styles.periodPill, period.days === p.days && styles.periodPillActive]}
-            onPress={() => setPeriod(p)}
-          >
-            <Text style={[styles.periodText, period.days === p.days && styles.periodTextActive]}>
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* ─── This Week ─────────────────────────────── */}
+      <SectionHead label="THIS WEEK" color="#7c3aed" />
+      <View style={styles.kpiRow}>
+        <KpiCard
+          icon="bar-chart-outline"
+          iconColor="#7c3aed"
+          label={t('analytics.revenue')}
+          value={formatCurrency(summary?.week?.revenue ?? 0)}
+          sub={`${summary?.week?.sales_count ?? 0} ${t('analytics.transactions')}`}
+        />
+        <KpiCard
+          icon="stats-chart-outline"
+          iconColor="#059669"
+          label={t('analytics.profit')}
+          value={formatCurrency(summary?.week?.profit ?? 0)}
+          sub={t('analytics.grossProfit')}
+        />
+      </View>
+
+      {/* ─── This Month ────────────────────────────── */}
+      <SectionHead label="THIS MONTH" color="#0891b2" />
+      <View style={styles.kpiRow}>
+        <KpiCard
+          icon="calendar-outline"
+          iconColor="#0891b2"
+          label={t('analytics.revenue')}
+          value={formatCurrency(summary?.month?.revenue ?? 0)}
+          sub={`${summary?.month?.sales_count ?? 0} ${t('analytics.transactions')}`}
+        />
+        <KpiCard
+          icon="wallet-outline"
+          iconColor={netProfit >= 0 ? '#059669' : '#dc2626'}
+          label={t('analytics.netProfit')}
+          value={formatCurrency(netProfit)}
+          sub={t('analytics.afterExpenses')}
+        />
+      </View>
+      <View style={styles.kpiRow}>
+        <KpiCard
+          icon="card-outline"
+          iconColor="#dc2626"
+          label={t('analytics.expenses')}
+          value={formatCurrency(summary?.month?.expenses ?? 0)}
+          sub={t('analytics.totalExpensesLabel')}
+        />
+        <KpiCard
+          icon="receipt-outline"
+          iconColor="#d97706"
+          label={t('analytics.avgSale')}
+          value={formatCurrency(summary?.avgOrder30d ?? 0)}
+          sub={t('analytics.last30Days')}
+        />
       </View>
 
       {/* Revenue + Profit Trend Chart */}
-      <View style={styles.card}>
+      <View style={[styles.card, { marginTop: 10 }]}>
         <View style={styles.chartTitleRow}>
           <Text style={styles.cardTitle}>{t('analytics.salesTrend')}</Text>
           <View style={styles.chartLegend}>
@@ -104,6 +153,22 @@ export default function AnalyticsScreen() {
             <View style={[styles.legendDot, { backgroundColor: '#86efac' }]} />
             <Text style={styles.legendText}>{t('analytics.legendProfit')}</Text>
           </View>
+        </View>
+        <View style={styles.periodRow} accessibilityRole="radiogroup">
+          {PERIODS.map(p => (
+            <TouchableOpacity
+              key={p.days}
+              style={[styles.periodPill, period.days === p.days && styles.periodPillActive]}
+              onPress={() => setPeriod(p)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: period.days === p.days }}
+              accessibilityLabel={p.label}
+            >
+              <Text style={[styles.periodText, period.days === p.days && styles.periodTextActive]}>
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
         <DualBarChart data={trend} />
       </View>
@@ -164,8 +229,11 @@ export default function AnalyticsScreen() {
               </Text>
             </View>
             <View style={styles.allTimeRow}>
-              <Text style={[styles.allTimeLabel, { fontWeight: '700' }]}>{t('analytics.netProfit')}</Text>
-              <Text style={[styles.allTimeValue, { fontWeight: '900', color: summary.allTime.net_profit >= 0 ? '#059669' : '#dc2626' }]}>
+              <Text style={[styles.allTimeLabel, { fontFamily: F.bold }]}>{t('analytics.netProfit')}</Text>
+              <Text style={[
+                styles.allTimeValue,
+                { fontFamily: F.black, color: summary.allTime.net_profit >= 0 ? '#059669' : '#dc2626' },
+              ]}>
                 {formatCurrency(summary.allTime.net_profit)}
               </Text>
             </View>
@@ -176,11 +244,24 @@ export default function AnalyticsScreen() {
   );
 }
 
-function KpiCard({ label, value, sub, color }) {
+function SectionHead({ label, color }) {
   return (
-    <View style={[styles.kpiCard, { borderLeftColor: color }]}>
+    <View style={styles.sectionHead}>
+      <View style={[styles.sectionAccent, { backgroundColor: color }]} />
+      <Text style={[styles.sectionHeadLabel, { color }]}>{label}</Text>
+      <View style={[styles.sectionLine, { backgroundColor: color + '22' }]} />
+    </View>
+  );
+}
+
+function KpiCard({ icon, iconColor, label, value, sub }) {
+  return (
+    <View style={styles.kpiCard}>
+      <View style={[styles.kpiIconWrap, { backgroundColor: iconColor + '18' }]}>
+        <Ionicons name={icon} size={17} color={iconColor} />
+      </View>
+      <Text style={styles.kpiValue}>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
-      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
       <Text style={styles.kpiSub}>{sub}</Text>
     </View>
   );
@@ -215,7 +296,7 @@ function DualBarChart({ data }) {
                 <View style={[styles.bar, { height: revH, backgroundColor: isToday ? '#1a56db' : '#bfdbfe', flex: 1 }]} />
                 <View style={[styles.bar, { height: profH, backgroundColor: isToday ? '#16a34a' : '#86efac', flex: 1 }]} />
               </View>
-              <Text style={[styles.barLabel, isToday && { color: '#1a56db', fontWeight: '700' }]}>
+              <Text style={[styles.barLabel, isToday && { color: '#1a56db', fontFamily: F.bold }]}>
                 {label}
               </Text>
             </View>
@@ -285,25 +366,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { padding: 16, paddingTop: 56 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  heading: { fontSize: 24, fontWeight: '900', color: '#111827', marginBottom: 16 },
+  heading: { fontSize: 26, fontFamily: F.black, color: '#111827', marginBottom: 20 },
 
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  kpiCard: {
-    width: '47%', backgroundColor: '#fff', borderRadius: 12,
-    padding: 14, borderLeftWidth: 4,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
+  // Section headers
+  sectionHead: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginBottom: 10, marginTop: 4,
   },
-  kpiLabel: { fontSize: 11, color: '#6b7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  kpiValue: { fontSize: 18, fontWeight: '900', marginTop: 4, marginBottom: 2 },
-  kpiSub: { fontSize: 11, color: '#9ca3af' },
+  sectionAccent: { width: 3, height: 14, borderRadius: 2 },
+  sectionHeadLabel: { fontSize: 10, fontFamily: F.black, letterSpacing: 1.5 },
+  sectionLine: { flex: 1, height: 1 },
 
-  periodRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  // KPI cards
+  kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  kpiCard: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 16,
+    padding: 14,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
+  },
+  kpiIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+  },
+  kpiValue: { fontSize: 19, fontFamily: F.black, color: '#0f172a', marginBottom: 2 },
+  kpiLabel: { fontSize: 11, fontFamily: F.medium, color: '#6b7280' },
+  kpiSub: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
+
+  // Period selector
+  periodRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   periodPill: {
     flex: 1, paddingVertical: 7, borderRadius: 20,
-    borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#d1d5db', alignItems: 'center',
   },
   periodPillActive: { borderColor: '#1a56db', backgroundColor: '#eff6ff' },
-  periodText: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
+  periodText: { fontSize: 13, color: '#6b7280', fontFamily: F.semiBold },
   periodTextActive: { color: '#1a56db' },
 
   card: {
@@ -311,13 +407,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
   },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 14 },
+  cardTitle: { fontSize: 15, fontFamily: F.extraBold, color: '#111827', marginBottom: 14 },
   empty: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 12 },
 
-  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  chartTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   chartLegend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#bfdbfe' },
-  legendText: { fontSize: 10, color: '#9ca3af', fontWeight: '600' },
+  legendText: { fontSize: 10, color: '#9ca3af', fontFamily: F.semiBold },
 
   chartArea: {
     flexDirection: 'row', alignItems: 'flex-end',
@@ -330,18 +426,18 @@ const styles = StyleSheet.create({
   barLabel: { fontSize: 9, color: '#9ca3af', marginTop: 4 },
 
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
-  topRank: { fontSize: 16, fontWeight: '900', color: '#d1d5db', width: 20, textAlign: 'center', marginTop: 1 },
-  topName: { fontSize: 13, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
-  topRevenue: { fontSize: 13, fontWeight: '700', color: '#1a56db' },
+  topRank: { fontSize: 16, fontFamily: F.black, color: '#d1d5db', width: 20, textAlign: 'center', marginTop: 1 },
+  topName: { fontSize: 13, fontFamily: F.bold, color: '#111827', flex: 1, marginRight: 8 },
+  topRevenue: { fontSize: 13, fontFamily: F.bold, color: '#1a56db' },
   topBarBg: { height: 5, backgroundColor: '#f3f4f6', borderRadius: 3 },
   topBar: { height: 5, backgroundColor: '#1a56db', borderRadius: 3 },
   topUnits: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
 
   payRow: { marginBottom: 14 },
   payDot: { width: 8, height: 8, borderRadius: 4 },
-  payLabel: { fontSize: 13, color: '#374151', fontWeight: '600' },
-  payValue: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  payCount: { fontSize: 11, color: '#9ca3af', fontWeight: '400' },
+  payLabel: { fontSize: 13, color: '#374151', fontFamily: F.semiBold },
+  payValue: { fontSize: 13, fontFamily: F.bold, color: '#111827' },
+  payCount: { fontSize: 11, color: '#9ca3af', fontFamily: F.regular },
   payBarBg: { height: 8, backgroundColor: '#f3f4f6', borderRadius: 4, overflow: 'hidden' },
   payBar: { height: 8, borderRadius: 4 },
 
@@ -350,5 +446,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
   allTimeLabel: { fontSize: 14, color: '#6b7280' },
-  allTimeValue: { fontSize: 14, fontWeight: '800', color: '#111827' },
+  allTimeValue: { fontSize: 14, fontFamily: F.extraBold, color: '#111827' },
 });

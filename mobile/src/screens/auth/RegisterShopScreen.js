@@ -132,7 +132,12 @@ export default function RegisterShopScreen({ navigation }) {
                 error={errors.shopName}
                 placeholder={t('auth.register.shopNamePlaceholder')}
               />
-              <TouchableOpacity style={styles.btn} onPress={() => { if (validateStep0()) setStep(1); }}>
+              <TouchableOpacity
+                style={styles.btn}
+                onPress={() => { if (validateStep0()) setStep(1); }}
+                accessibilityRole="button"
+                accessibilityLabel="Next step: owner account"
+              >
                 <Text style={styles.btnText}>{t('common.next')}</Text>
               </TouchableOpacity>
             </>
@@ -155,11 +160,20 @@ export default function RegisterShopScreen({ navigation }) {
                 onChangeText={v => { setConfirmPassword(v); setErrors(e => ({ ...e, confirmPassword: null })); }}
                 error={errors.confirmPassword} placeholder={t('auth.register.confirmPasswordPlaceholder')} secureTextEntry />
               <View style={styles.rowBtns}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => setStep(0)}>
+                <TouchableOpacity
+                  style={styles.backBtn}
+                  onPress={() => setStep(0)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to shop details"
+                >
                   <Text style={styles.backBtnText}>← {t('common.back')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, { flex: 1 }]}
-                  onPress={() => { if (validateStep1()) setStep(2); }}>
+                <TouchableOpacity
+                  style={[styles.btn, { flex: 1 }]}
+                  onPress={() => { if (validateStep1()) setStep(2); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next step: security"
+                >
                   <Text style={styles.btnText}>{t('common.next')}</Text>
                 </TouchableOpacity>
               </View>
@@ -178,11 +192,14 @@ export default function RegisterShopScreen({ navigation }) {
                   key={q}
                   style={[styles.questionRow, securityQuestion === q && styles.questionRowSelected]}
                   onPress={() => { setSecurityQuestion(q); setErrors(e => ({ ...e, securityQuestion: null })); }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: securityQuestion === q }}
+                  accessibilityLabel={q}
                 >
-                  <View style={[styles.radio, securityQuestion === q && styles.radioSelected]}>
+                  <View style={[styles.radio, securityQuestion === q && styles.radioSelected]} importantForAccessibility="no">
                     {securityQuestion === q && <View style={styles.radioDot} />}
                   </View>
-                  <Text style={styles.questionText}>{q}</Text>
+                  <Text style={styles.questionText} importantForAccessibility="no">{q}</Text>
                 </TouchableOpacity>
               ))}
 
@@ -204,10 +221,20 @@ export default function RegisterShopScreen({ navigation }) {
                 <ActivityIndicator size="large" color="#1a56db" style={{ marginTop: 20 }} />
               ) : (
                 <View style={styles.rowBtns}>
-                  <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
+                  <TouchableOpacity
+                    style={styles.backBtn}
+                    onPress={() => setStep(1)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back to owner account"
+                  >
                     <Text style={styles.backBtnText}>← {t('common.back')}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={handleRegister}>
+                  <TouchableOpacity
+                    style={[styles.btn, { flex: 1 }]}
+                    onPress={handleRegister}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create your shop"
+                  >
                     <Text style={styles.btnText}>{t('auth.register.createShop')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -216,7 +243,12 @@ export default function RegisterShopScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate('Login')}>
+        <TouchableOpacity
+          style={styles.link}
+          onPress={() => navigation.navigate('Login')}
+          accessibilityRole="button"
+          accessibilityLabel="Sign in to existing shop"
+        >
           <Text style={styles.linkText}>
             {t('auth.register.alreadyHaveShop')} <Text style={styles.linkBold}>{t('auth.register.signIn')}</Text>
           </Text>

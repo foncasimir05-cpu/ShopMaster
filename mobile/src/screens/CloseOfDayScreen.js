@@ -114,8 +114,13 @@ export default function CloseOfDayScreen({ navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <View>
           <Text style={styles.title}>{t('closeOfDay.title')}</Text>
@@ -157,6 +162,7 @@ export default function CloseOfDayScreen({ navigation }) {
               onChangeText={setActualCash}
               placeholder="0"
               keyboardType="numeric"
+              accessibilityLabel="Actual cash count"
             />
 
             {actualCash !== '' && (
@@ -183,6 +189,7 @@ export default function CloseOfDayScreen({ navigation }) {
               onChangeText={setNotes}
               placeholder={t('closeOfDay.notesPlaceholder')}
               multiline
+              accessibilityLabel="Closure notes"
             />
 
             {existingClosure && (
@@ -199,8 +206,13 @@ export default function CloseOfDayScreen({ navigation }) {
             {saving ? (
               <ActivityIndicator size="large" color="#1a2e4a" style={{ marginTop: 16 }} />
             ) : (
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                <Ionicons name="lock-closed-outline" size={18} color="#fff" />
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleSave}
+                accessibilityRole="button"
+                accessibilityLabel={existingClosure ? 'Save new closure record' : 'Close day and save'}
+              >
+                <Ionicons name="lock-closed-outline" size={18} color="#fff" importantForAccessibility="no" />
                 <Text style={styles.saveBtnText}>
                   {existingClosure ? t('closeOfDay.saveNewRecord') : t('closeOfDay.closeAndSave')}
                 </Text>

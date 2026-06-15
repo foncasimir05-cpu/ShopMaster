@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useStockAlert } from '../context/StockAlertContext';
+import { F } from '../theme';
 
 const ACTION_DEFS = [
   { key: 'newSale',    icon: 'cart',           screen: 'POS',            color: '#2563eb', bg: '#eff6ff' },
@@ -96,21 +97,35 @@ export default function HomeScreen() {
       <Text style={styles.sectionLabel}>{t('home.quickActions')}</Text>
 
       <View style={styles.actionsGrid}>
-        {ACTION_DEFS.map(action => (
-          <TouchableOpacity
-            key={action.screen}
-            style={styles.actionCard}
-            onPress={() => navigation.navigate(action.screen)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t(`home.actions.${action.key}`)}
-          >
-            <View style={[styles.actionIconWrap, { backgroundColor: action.bg }]} importantForAccessibility="no">
-              <Ionicons name={action.icon} size={22} color={action.color} />
-            </View>
-            <Text style={styles.actionLabel} importantForAccessibility="no">{t(`home.actions.${action.key}`)}</Text>
-          </TouchableOpacity>
-        ))}
+        {ACTION_DEFS.map(action => {
+          const isPrimary = action.key === 'newSale';
+          return (
+            <TouchableOpacity
+              key={action.screen}
+              style={[styles.actionCard, isPrimary && styles.actionCardPrimary]}
+              onPress={() => navigation.navigate(action.screen)}
+              activeOpacity={0.78}
+              accessibilityRole="button"
+              accessibilityLabel={t(`home.actions.${action.key}`)}
+            >
+              <View
+                style={[
+                  styles.actionIconWrap,
+                  { backgroundColor: isPrimary ? 'rgba(255,255,255,0.2)' : action.bg },
+                ]}
+                importantForAccessibility="no"
+              >
+                <Ionicons name={action.icon} size={22} color={isPrimary ? '#fff' : action.color} />
+              </View>
+              <Text
+                style={[styles.actionLabel, isPrimary && styles.actionLabelPrimary]}
+                importantForAccessibility="no"
+              >
+                {t(`home.actions.${action.key}`)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
     </ScrollView>
@@ -141,14 +156,14 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 50, height: 50, borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.04)', top: 20, right: 100,
   },
-  heroDate: { fontSize: 12, color: '#93c5fd', fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 },
-  heroGreeting: { fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 24, marginBottom: 16 },
-  heroName: { fontSize: 22, color: '#fff', fontWeight: '900' },
+  heroDate: { fontSize: 12, fontFamily: F.semiBold, color: '#93c5fd', marginBottom: 8, letterSpacing: 0.3 },
+  heroGreeting: { fontSize: 15, fontFamily: F.regular, color: 'rgba(255,255,255,0.7)', lineHeight: 24, marginBottom: 16 },
+  heroName: { fontSize: 24, fontFamily: F.black, color: '#fff' },
   heroFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   heroShop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  heroShopName: { fontSize: 12, color: '#93c5fd', fontWeight: '600' },
+  heroShopName: { fontSize: 12, fontFamily: F.semiBold, color: '#93c5fd' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(220,38,38,0.15)' },
-  logoutText: { color: '#fca5a5', fontSize: 12, fontWeight: '700' },
+  logoutText: { color: '#fca5a5', fontSize: 12, fontFamily: F.bold },
 
   // Alert card
   alertCard: {
@@ -160,11 +175,11 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: '#fef3c7', justifyContent: 'center', alignItems: 'center',
   },
-  alertTitle: { fontSize: 13, fontWeight: '700', color: '#92400e' },
+  alertTitle: { fontSize: 13, fontFamily: F.bold, color: '#92400e' },
   alertSub: { fontSize: 11.5, color: '#b45309', marginTop: 2 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: '#94a3b8',
+    fontSize: 11, fontFamily: F.bold, color: '#94a3b8',
     letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12,
   },
 
@@ -176,12 +191,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
     borderWidth: 1, borderColor: '#f1f5f9',
   },
+  actionCardPrimary: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+    shadowColor: '#2563eb', shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
+  },
   actionIconWrap: {
     width: 48, height: 48, borderRadius: 14,
     justifyContent: 'center', alignItems: 'center',
   },
   actionLabel: {
-    color: '#374151', fontSize: 11.5, fontWeight: '700',
+    color: '#374151', fontSize: 11.5, fontFamily: F.bold,
     textAlign: 'center', lineHeight: 15,
   },
+  actionLabelPrimary: { color: '#fff' },
 });

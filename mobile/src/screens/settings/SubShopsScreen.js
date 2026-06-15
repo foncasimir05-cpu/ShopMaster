@@ -77,8 +77,13 @@ export default function SubShopsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Ionicons name="arrow-back" size={22} color="#1a2e4a" />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
         </TouchableOpacity>
         <Text style={styles.heading}>Manage Branches</Text>
       </View>
@@ -101,15 +106,25 @@ export default function SubShopsScreen() {
                 <Text style={styles.cardName}>{branch.name}</Text>
                 <Text style={styles.cardMeta}>{branch.staff_count} active staff</Text>
               </View>
-              <TouchableOpacity style={styles.accessBtn} onPress={() => handleAccess(branch)}>
+              <TouchableOpacity
+                style={styles.accessBtn}
+                onPress={() => handleAccess(branch)}
+                accessibilityRole="button"
+                accessibilityLabel={`Access ${branch.name}`}
+              >
                 <Text style={styles.accessBtnText}>Access</Text>
               </TouchableOpacity>
             </View>
           ))}
 
           {!showForm && (
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)}>
-              <Ionicons name="add-circle-outline" size={20} color="#1a2e4a" />
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add new branch"
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
               <Text style={styles.addBtnText}>Add Branch</Text>
             </TouchableOpacity>
           )}
@@ -123,13 +138,21 @@ export default function SubShopsScreen() {
               <Field label="Admin Password" value={adminPassword} onChangeText={setAdminPassword} secureTextEntry placeholder="Min 8 characters" />
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
               <View style={styles.formActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowForm(false); setError(''); }}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => { setShowForm(false); setError(''); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.createBtn, creating && styles.disabledBtn]}
                   onPress={handleCreate}
                   disabled={creating}
+                  accessibilityRole="button"
+                  accessibilityLabel={creating ? 'Creating branch' : 'Create branch'}
+                  accessibilityState={{ disabled: creating }}
                 >
                   <Text style={styles.createBtnText}>{creating ? 'Creating…' : 'Create Branch'}</Text>
                 </TouchableOpacity>

@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, Alert, ScrollView,
   Animated, Platform, Modal, useWindowDimensions,
 } from 'react-native';
+import { F } from '../../theme';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -76,7 +77,7 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, formatCurre
             {formatCurrency(item.price)}
           </Text>
           <View style={styles.cardBadgeWrap} importantForAccessibility="no">
-            {item.has_variants && (
+            {!!item.has_variants && (
               <View style={styles.varsBadge}>
                 <Text style={styles.varsBadgeText}>VAR</Text>
               </View>
@@ -124,6 +125,7 @@ export default function POSScreen({ navigation }) {
   const [variantPickerProduct, setVariantPickerProduct] = useState(null);
   const [variants, setVariants] = useState([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
+  const [showExtras, setShowExtras] = useState(false);
 
   const searchRef    = useRef(null);
   const successAnim  = useRef(new Animated.Value(0)).current;
@@ -576,77 +578,96 @@ export default function POSScreen({ navigation }) {
           </ScrollView>
         )}
 
-        {/* Promo row */}
-        <View style={styles.promoRow}>
-          <TextInput
-            style={styles.promoInput}
-            placeholder={t('pos.promoCode')}
-            placeholderTextColor="#94a3b8"
-            value={promoCode}
-            onChangeText={t => { setPromoCode(t); if (!t) setPromoData(null); }}
-            autoCapitalize="characters"
-            editable={!promoData}
-            accessibilityLabel="Promo code"
-            accessibilityHint={promoData ? 'Promo applied. Remove it first to enter a new code.' : 'Enter a promo code and tap Apply'}
-          />
-          {promoData ? (
-            <TouchableOpacity
-              style={styles.promoRemoveBtn}
-              onPress={() => { setPromoData(null); setPromoCode(''); }}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove promo ${promoData.promoName}`}
-            >
-              <Text style={styles.promoRemoveText}>✕ {promoData.promoName}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.promoApplyBtn, (!promoCode.trim() || promoLoading) && styles.promoApplyBtnDisabled]}
-              onPress={handleApplyPromo}
-              disabled={promoLoading || !promoCode.trim()}
-              accessibilityRole="button"
-              accessibilityLabel="Apply promo code"
-              accessibilityState={{ disabled: promoLoading || !promoCode.trim() }}
-            >
-              {promoLoading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.promoApplyText}>{t('pos.promoApply')}</Text>}
-            </TouchableOpacity>
-          )}
-        </View>
-        {promoData && (
-          <Text style={styles.promoSaved}>"{promoData.promoName}" — saving {formatCurrency(promoData.discount)}</Text>
-        )}
-
-        {/* Totals */}
-        <View style={styles.totalsRow}>
-          <View style={styles.totalsLeft}>
-            <Text style={styles.totalsLine}>
-              {t('pos.subtotal')} <Text style={styles.totalsValue}>{formatCurrency(totals.subtotal)}</Text>
-            </Text>
+        {/* Total + Extras toggle */}
+        <View style={styles.totalPanel}>
+          <View>
+            <Text style={styles.totalLabel}>{t('pos.total')}</Text>
+            <Text style={styles.totalBig}>{formatCurrency(totals.total)}</Text>
             {totals.discount > 0 && (
-              <Text style={styles.totalsLine}>
-                {t('pos.discount')} <Text style={[styles.totalsValue, { color: '#059669' }]}>-{formatCurrency(totals.discount)}</Text>
+              <Text style={styles.totalSavings}>
+                -{formatCurrency(totals.discount)} {t('pos.discount')}
               </Text>
             )}
           </View>
-          <View style={styles.discountWrap}>
-            <Text style={styles.discountLabel}>{t('pos.discountLabel')}</Text>
-            <TextInput
-              style={styles.discountInput}
-              value={discount}
-              onChangeText={setDiscount}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor="#94a3b8"
-              accessibilityLabel="Discount amount"
+          <TouchableOpacity
+            style={[styles.extrasBtn, showExtras && styles.extrasBtnActive]}
+            onPress={() => setShowExtras(v => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={showExtras ? 'Hide extras' : 'Show discount and promo'}
+          >
+            <Ionicons
+              name={showExtras ? 'chevron-up' : 'options-outline'}
+              size={14}
+              color={showExtras ? '#2563eb' : '#64748b'}
             />
-          </View>
+            <Text style={[styles.extrasBtnText, showExtras && { color: '#2563eb' }]}>
+              {showExtras ? 'Hide' : 'Extras'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>{t('pos.total')}</Text>
-          <Text style={styles.totalBig}>{formatCurrency(totals.total)}</Text>
-        </View>
+        {/* Collapsible extras: promo + discount */}
+        {showExtras && (
+          <View style={styles.extrasPanel}>
+            {totals.discount > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{t('pos.subtotal')}</Text>
+                <Text style={styles.breakdownValue}>{formatCurrency(totals.subtotal)}</Text>
+              </View>
+            )}
+            <View style={styles.promoRow}>
+              <TextInput
+                style={styles.promoInput}
+                placeholder={t('pos.promoCode')}
+                placeholderTextColor="#94a3b8"
+                value={promoCode}
+                onChangeText={text => { setPromoCode(text); if (!text) setPromoData(null); }}
+                autoCapitalize="characters"
+                editable={!promoData}
+                accessibilityLabel="Promo code"
+                accessibilityHint={promoData ? 'Promo applied. Remove it first to enter a new code.' : 'Enter a promo code and tap Apply'}
+              />
+              {promoData ? (
+                <TouchableOpacity
+                  style={styles.promoRemoveBtn}
+                  onPress={() => { setPromoData(null); setPromoCode(''); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove promo ${promoData.promoName}`}
+                >
+                  <Text style={styles.promoRemoveText}>✕ {promoData.promoName}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.promoApplyBtn, (!promoCode.trim() || promoLoading) && styles.promoApplyBtnDisabled]}
+                  onPress={handleApplyPromo}
+                  disabled={promoLoading || !promoCode.trim()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Apply promo code"
+                  accessibilityState={{ disabled: promoLoading || !promoCode.trim() }}
+                >
+                  {promoLoading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={styles.promoApplyText}>{t('pos.promoApply')}</Text>}
+                </TouchableOpacity>
+              )}
+            </View>
+            {promoData && (
+              <Text style={styles.promoSaved}>"{promoData.promoName}" — saving {formatCurrency(promoData.discount)}</Text>
+            )}
+            <View style={styles.discountRow}>
+              <Text style={styles.discountRowLabel}>{t('pos.discountLabel')}</Text>
+              <TextInput
+                style={styles.discountInput}
+                value={discount}
+                onChangeText={setDiscount}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor="#94a3b8"
+                accessibilityLabel="Discount amount"
+              />
+            </View>
+          </View>
+        )}
 
         {/* Payment method pills */}
         <View style={styles.methodRow} accessibilityRole="radiogroup" accessibilityLabel="Payment method">
@@ -921,45 +942,65 @@ const styles = StyleSheet.create({
   // Bottom panel
   panel: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
     borderTopWidth: 1, borderTopColor: '#e2e8f0',
     paddingHorizontal: 14, paddingBottom: 16, paddingTop: 12,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 16, elevation: 10,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 20, elevation: 12,
   },
-  cartList: { maxHeight: 155 },
+  cartList: { maxHeight: 140 },
 
-  promoRow: { flexDirection: 'row', gap: 8, marginTop: 6, marginBottom: 2 },
+  // Total + extras
+  totalPanel: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#f1f5f9', marginBottom: 10,
+  },
+  totalLabel: { fontSize: 10, fontFamily: F.bold, color: '#94a3b8', letterSpacing: 1.2, marginBottom: 2 },
+  totalBig: { fontSize: 30, fontFamily: F.black, color: '#0f172a' },
+  totalSavings: { fontSize: 11, fontFamily: F.semiBold, color: '#059669', marginTop: 2 },
+  extrasBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#f8fafc', borderWidth: 1.5, borderColor: '#e2e8f0',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6,
+  },
+  extrasBtnActive: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
+  extrasBtnText: { fontSize: 12, fontFamily: F.semiBold, color: '#64748b' },
+
+  // Extras collapsible panel
+  extrasPanel: {
+    backgroundColor: '#f8fafc', borderRadius: 12,
+    padding: 10, marginBottom: 10,
+    borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  breakdownRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 4, marginBottom: 6,
+  },
+  breakdownLabel: { fontSize: 12, color: '#64748b' },
+  breakdownValue: { fontSize: 12, fontFamily: F.bold, color: '#0f172a' },
+  discountRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginTop: 8,
+  },
+  discountRowLabel: { fontSize: 13, color: '#374151', fontFamily: F.medium },
+  discountInput: {
+    borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8,
+    width: 80, paddingHorizontal: 10, paddingVertical: 6,
+    fontSize: 15, textAlign: 'right', color: '#0f172a', backgroundColor: '#fff',
+  },
+
+  promoRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   promoInput: {
     flex: 1, borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 7, fontSize: 13,
-    backgroundColor: '#f8fafc', color: '#0f172a',
+    backgroundColor: '#fff', color: '#0f172a',
   },
   promoApplyBtn: { backgroundColor: '#7c3aed', borderRadius: 8, paddingHorizontal: 14, justifyContent: 'center' },
   promoApplyBtnDisabled: { backgroundColor: '#c4b5fd' },
-  promoApplyText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  promoApplyText: { color: '#fff', fontFamily: F.bold, fontSize: 13 },
   promoRemoveBtn: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 10, justifyContent: 'center' },
-  promoRemoveText: { color: '#15803d', fontWeight: '700', fontSize: 12 },
-  promoSaved: { fontSize: 11, color: '#15803d', fontWeight: '600', marginBottom: 2 },
-
-  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  totalsLeft: { flex: 1, gap: 2 },
-  totalsLine: { fontSize: 12.5, color: '#64748b' },
-  totalsValue: { fontWeight: '700', color: '#0f172a' },
-  discountWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  discountLabel: { fontSize: 12, color: '#64748b' },
-  discountInput: {
-    borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8,
-    width: 68, paddingHorizontal: 8, paddingVertical: 5,
-    fontSize: 14, textAlign: 'right', color: '#0f172a',
-  },
-
-  totalRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'baseline', marginVertical: 6,
-    borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 6,
-  },
-  totalLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8', letterSpacing: 1.2 },
-  totalBig: { fontSize: 28, fontWeight: '900', color: '#0f172a' },
+  promoRemoveText: { color: '#15803d', fontFamily: F.bold, fontSize: 12 },
+  promoSaved: { fontSize: 11, color: '#15803d', fontFamily: F.semiBold, marginBottom: 4 },
 
   methodRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   methodPill: {
@@ -968,8 +1009,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7, backgroundColor: '#f8fafc',
   },
   methodPillActive: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
-  methodText: { fontSize: 11.5, color: '#64748b', fontWeight: '600' },
-  methodTextActive: { color: '#2563eb', fontWeight: '700' },
+  methodText: { fontSize: 11.5, fontFamily: F.semiBold, color: '#64748b' },
+  methodTextActive: { color: '#2563eb', fontFamily: F.bold },
 
   chargeBtn: {
     backgroundColor: '#1a2e4a', borderRadius: 14,
@@ -977,7 +1018,7 @@ const styles = StyleSheet.create({
   },
   chargeBtnDisabled: { backgroundColor: '#cbd5e1' },
   chargeBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  chargeBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+  chargeBtnText: { color: '#fff', fontSize: 16, fontFamily: F.extraBold, letterSpacing: 0.3 },
 
   // Success screen
   successScreen: {
@@ -990,8 +1031,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#dcfce7', justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
   successIconText: { fontSize: 52, lineHeight: 60 },
-  successTitle: { fontSize: 28, fontWeight: '900', color: '#0f172a', marginBottom: 4 },
-  successRef: { fontSize: 13, color: '#94a3b8', marginBottom: 24 },
+  successTitle: { fontSize: 28, fontFamily: F.black, color: '#0f172a', marginBottom: 4 },
+  successRef: { fontSize: 13, fontFamily: F.medium, color: '#94a3b8', marginBottom: 24 },
   successAmounts: {
     width: '100%', backgroundColor: '#fff', borderRadius: 14,
     padding: 16, marginBottom: 28,
@@ -1006,7 +1047,7 @@ const styles = StyleSheet.create({
     width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#1a2e4a', borderRadius: 14, paddingVertical: 16, marginBottom: 10,
   },
-  newSaleBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  newSaleBtnText: { color: '#fff', fontSize: 17, fontFamily: F.extraBold },
   viewSaleBtn: { paddingVertical: 10 },
   viewSaleBtnText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
 
