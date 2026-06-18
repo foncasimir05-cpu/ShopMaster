@@ -216,10 +216,13 @@ export default function SettingsScreen() {
             if (!trimmed) return;
             setLicenseActivating(true);
             try {
-              await activateLicense(trimmed);
-              await refreshLicense();
+              const result = await activateLicense(trimmed);
+              refreshLicense(result);
               setLicenseKeyInput('');
-              Alert.alert('License Activated', 'Your license is now active. Multi-branch management is unlocked.');
+              const isPro = result?.licenseType === 'pro';
+              Alert.alert('License Activated', isPro
+                ? 'Pro license active. Multi-branch management is now unlocked.'
+                : 'Basic license active. Your shop is fully licensed.');
             } catch (err) {
               Alert.alert('Activation Failed', err.response?.data?.error ?? 'Invalid or already-used key.');
             } finally {

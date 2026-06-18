@@ -50,7 +50,11 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  const refreshLicense = useCallback(async () => {
+  const refreshLicense = useCallback(async (preloaded) => {
+    if (preloaded) {
+      setLicenseStatus(preloaded);
+      return preloaded;
+    }
     try {
       const ls = await getLicenseStatus();
       setLicenseStatus(ls);

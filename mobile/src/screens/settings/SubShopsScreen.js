@@ -81,9 +81,15 @@ export default function SubShopsScreen() {
     if (!trimmed) return;
     setLicActivating(true);
     try {
-      await activateLicense(trimmed);
-      await refreshLicense();
+      const result = await activateLicense(trimmed);
+      refreshLicense(result);
       setLicKeyInput('');
+      if (result?.licenseType !== 'pro') {
+        Alert.alert(
+          'Basic License Activated',
+          'Your shop is licensed, but multi-branch management requires a Pro license key (starts with SMPRO-).'
+        );
+      }
     } catch (err) {
       Alert.alert('Activation Failed', err.response?.data?.error ?? 'Invalid or already-used key.');
     } finally {

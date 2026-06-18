@@ -19,8 +19,8 @@ export default function LicenseExpiredScreen() {
     setLoading(true);
     setError('');
     try {
-      await activateLicense(trimmed);
-      await refreshLicense();
+      const result = await activateLicense(trimmed);
+      refreshLicense(result);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Could not activate key. Please check and try again.');
     } finally {
