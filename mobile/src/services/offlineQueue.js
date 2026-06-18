@@ -16,6 +16,21 @@ export async function getCachedProducts() {
   } catch { return []; }
 }
 
+// ── Customer cache ────────────────────────────────────────────────────────────
+
+const CUSTOMERS_KEY = 'shopmaster_customers_cache';
+
+export async function cacheCustomers(customers) {
+  try { await setItem(CUSTOMERS_KEY, JSON.stringify(customers)); } catch {}
+}
+
+export async function getCachedCustomers() {
+  try {
+    const raw = await getItem(CUSTOMERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
 // ── Operations queue ──────────────────────────────────────────────────────────
 // Each entry: { clientId, type, data, queuedAt }
 // Old entries (pre-generalisation) had { localId, data } — handled transparently.
@@ -34,8 +49,11 @@ export async function queueOperation(type, data) {
   } catch (e) { console.warn('queueOperation error:', e); }
 }
 
-// Convenience alias — existing callers in POSScreen stay unchanged
-export const queueSale = (data) => queueOperation('sale', data);
+// Convenience aliases
+export const queueSale           = (data) => queueOperation('sale', data);
+export const queueExpense        = (data) => queueOperation('expense', data);
+export const queueStockAdjust    = (data) => queueOperation('stock_adjustment', data);
+export const queueCreateCustomer = (data) => queueOperation('create_customer', data);
 
 // Pure normalisation — exported for unit tests and reuse
 export function normalizeOp(op) {

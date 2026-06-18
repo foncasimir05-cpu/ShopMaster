@@ -41,9 +41,10 @@ router.post('/batch', async (req, res, next) => {
 
       try {
         let resultData;
-        if (type === 'sale')             resultData = await processSale(db, req.shopId, req.user.id, data);
-        else if (type === 'expense')     resultData = await processExpense(db, req.shopId, req.user.id, data);
+        if (type === 'sale')                resultData = await processSale(db, req.shopId, req.user.id, data);
+        else if (type === 'expense')        resultData = await processExpense(db, req.shopId, req.user.id, data);
         else if (type === 'stock_adjustment') resultData = await processAdjustment(db, req.shopId, data);
+        else if (type === 'create_customer')  resultData = await processCreateCustomer(db, req.shopId, data);
         else throw new Error(`Unknown operation type: ${type}`);
 
         await dbRun(db,
@@ -170,6 +171,18 @@ async function processAdjustment(db, shopId, data) {
     [uuidv4(), shopId, productId, quantity, 'adjustment', note || null]
   );
   return { adjusted: true, newDelta: quantity };
+}
+
+async function processCreateCustomer(db, shopId, data) {
+  const { name, phone, email } = data || {};
+  if (!name) throw new Error('name required');
+
+  const id = uuidv4();
+  await dbRun(db,
+    'INSERT INTO customers (id, tenant_id, name, phone, email) VALUES (?,?,?,?,?)',
+    [id, shopId, name.trim(), phone || null, email || null]
+  );
+  return { customerId: id };
 }
 
 module.exports = router;

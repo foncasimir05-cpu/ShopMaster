@@ -6,6 +6,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
+import { useOffline } from '../../context/OfflineContext';
+import { queueExpense } from '../../services/offlineQueue';
 import * as api from '../../services/api';
 
 const CATEGORY_KEYS = ['Rent', 'Salaries', 'Utilities', 'Supplies', 'Transport', 'Marketing', 'Equipment', 'Other'];
@@ -31,9 +33,13 @@ const today = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_FORM = { amount: '', category: 'Other', description: '', date: today() };
 
+const isNetworkErr = (err) =>
+  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
+
 export default function ExpensesScreen({ navigation }) {
   const { t } = useTranslation();
   const { formatCurrency } = useShop();
+  const { refreshCount } = useOffline();
   const [expenses, setExpenses] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -106,7 +112,18 @@ export default function ExpensesScreen({ navigation }) {
       setModalVisible(false);
       load();
     } catch (err) {
-      Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      if (!editingId && isNetworkErr(err)) {
+        await queueExpense({
+          ...form,
+          amount: Number(form.amount),
+          description: form.description || form.category,
+        });
+        await refreshCount();
+        setModalVisible(false);
+        Alert.alert('Saved Offline', 'Expense queued — will sync when internet returns.');
+      } else {
+        Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      }
     } finally {
       setSaving(false);
     }

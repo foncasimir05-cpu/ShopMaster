@@ -14,11 +14,17 @@ import {
   Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useOffline } from '../context/OfflineContext';
+import { queueStockAdjust } from '../services/offlineQueue';
 import * as api from '../services/api';
 import BarcodeLabelModal from './inventory/BarcodeLabelModal';
 
+const isNetworkErr = (err) =>
+  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
+
 export default function InventoryScreen() {
   const { t } = useTranslation();
+  const { refreshCount } = useOffline();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lowStockOnly, setLowStockOnly] = useState(false);
@@ -58,7 +64,14 @@ export default function InventoryScreen() {
       Alert.alert(t('inventory.updated'), t('inventory.stockUpdated', { prev: result.previousStock, new: result.newStock }));
       fetchInventory();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? err.message);
+      if (isNetworkErr(err)) {
+        await queueStockAdjust({ productId: adjustItem.id, quantity: delta, note: 'Manual adjustment' });
+        await refreshCount();
+        setAdjustItem(null);
+        Alert.alert('Saved Offline', `Adjustment of ${delta > 0 ? '+' : ''}${delta} units queued — will sync when internet returns.`);
+      } else {
+        Alert.alert('Error', err.response?.data?.error ?? err.message);
+      }
     } finally {
       setAdjusting(false);
     }

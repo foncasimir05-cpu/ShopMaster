@@ -6,11 +6,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
+import { useOffline } from '../../context/OfflineContext';
+import { getCachedCustomers, cacheCustomers, queueCreateCustomer } from '../../services/offlineQueue';
 import * as api from '../../services/api';
+
+const isNetworkErr = (err) =>
+  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
 
 export default function CustomersScreen() {
   const { t, i18n } = useTranslation();
   const { formatCurrency } = useShop();
+  const { refreshCount } = useOffline();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,9 +31,18 @@ export default function CustomersScreen() {
     setLoading(true);
     try {
       const data = await api.getCustomers({ search: q, limit: 60 });
-      setCustomers(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setCustomers(list);
+      // Cache the full unfiltered list for offline use
+      if (!q) await cacheCustomers(list);
     } catch (err) {
-      Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      if (isNetworkErr(err)) {
+        const cached = await getCachedCustomers();
+        const q2 = q.toLowerCase();
+        setCustomers(q2 ? cached.filter(c => c.name.toLowerCase().includes(q2) || (c.phone ?? '').includes(q2)) : cached);
+      } else {
+        Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,7 +85,14 @@ export default function CustomersScreen() {
       setFormVisible(false);
       fetchCustomers('');
     } catch (err) {
-      Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      if (!editCustomer && isNetworkErr(err)) {
+        await queueCreateCustomer(form);
+        await refreshCount();
+        setFormVisible(false);
+        Alert.alert('Saved Offline', `${form.name} queued — will sync when internet returns.`);
+      } else {
+        Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      }
     } finally {
       setSaving(false);
     }

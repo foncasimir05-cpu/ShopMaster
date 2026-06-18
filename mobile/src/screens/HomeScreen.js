@@ -1,11 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useStockAlert } from '../context/StockAlertContext';
+import { useOffline } from '../context/OfflineContext';
 import { F } from '../theme';
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 const ACTION_DEFS = [
   { key: 'newSale',    icon: 'cart',           screen: 'POS',            color: '#2563eb', bg: '#eff6ff' },
@@ -25,6 +36,13 @@ export default function HomeScreen() {
   const { logout, user } = useAuth();
   const navigation = useNavigation();
   const { count: lowStockCount, products: lowStockProducts } = useStockAlert();
+  const { isOnline, pendingCount, lastSyncedAt, manualSync } = useOffline();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleManualSync = useCallback(async () => {
+    setSyncing(true);
+    try { await manualSync(); } finally { setSyncing(false); }
+  }, [manualSync]);
 
   const now = new Date();
   const dateStr = now.toLocaleDateString(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -67,6 +85,41 @@ export default function HomeScreen() {
             <Text style={styles.logoutText}>{t('home.logout')}</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Sync status bar */}
+      <View
+        style={styles.syncRow}
+        accessible
+        accessibilityLabel={isOnline
+          ? `Online. ${pendingCount > 0 ? pendingCount + ' operations queued.' : 'All synced.'} ${lastSyncedAt ? 'Last synced ' + timeAgo(lastSyncedAt) + '.' : ''}`
+          : `Offline. ${pendingCount > 0 ? pendingCount + ' operations queued.' : ''}`}
+      >
+        <View style={[styles.syncDot, { backgroundColor: isOnline ? '#10b981' : '#ef4444' }]} importantForAccessibility="no" />
+        <Text style={styles.syncText} importantForAccessibility="no">
+          {isOnline
+            ? (lastSyncedAt ? `Synced ${timeAgo(lastSyncedAt)}` : 'Connected')
+            : 'Offline'}
+        </Text>
+        {pendingCount > 0 && (
+          <View style={styles.pendingBadge} importantForAccessibility="no">
+            <Text style={styles.pendingBadgeText}>{pendingCount} queued</Text>
+          </View>
+        )}
+        {isOnline && (
+          <TouchableOpacity
+            onPress={handleManualSync}
+            disabled={syncing}
+            style={styles.syncBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Sync now"
+          >
+            {syncing
+              ? <ActivityIndicator size="small" color="#2563eb" style={{ width: 14, height: 14 }} />
+              : <Ionicons name="sync-outline" size={13} color="#2563eb" importantForAccessibility="no" />}
+            <Text style={styles.syncBtnText}>{syncing ? 'Syncing…' : 'Sync'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Low stock alert */}
@@ -177,6 +230,25 @@ const styles = StyleSheet.create({
   },
   alertTitle: { fontSize: 13, fontFamily: F.bold, color: '#92400e' },
   alertSub: { fontSize: 11.5, color: '#b45309', marginTop: 2 },
+
+  syncRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9,
+    marginBottom: 12, borderWidth: 1, borderColor: '#e5e7eb',
+  },
+  syncDot: { width: 7, height: 7, borderRadius: 4 },
+  syncText: { flex: 1, fontSize: 12, fontFamily: F.semiBold, color: '#6b7280' },
+  pendingBadge: {
+    backgroundColor: '#fef3c7', borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  pendingBadgeText: { fontSize: 11, fontFamily: F.bold, color: '#92400e' },
+  syncBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#eff6ff', borderRadius: 8,
+    paddingHorizontal: 9, paddingVertical: 5,
+  },
+  syncBtnText: { fontSize: 11, fontFamily: F.bold, color: '#2563eb' },
 
   sectionLabel: {
     fontSize: 11, fontFamily: F.bold, color: '#94a3b8',

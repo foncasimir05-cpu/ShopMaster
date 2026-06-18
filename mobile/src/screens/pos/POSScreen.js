@@ -13,7 +13,7 @@ import { computeCartTotals } from 'shopmaster-shared';
 import { useShop } from '../../context/ShopContext';
 import { useUSBScanner } from '../../hooks/useUSBScanner';
 import { useOffline } from '../../context/OfflineContext';
-import { cacheProducts, getCachedProducts, queueSale } from '../../services/offlineQueue';
+import { cacheProducts, getCachedProducts, queueSale, getCachedCustomers } from '../../services/offlineQueue';
 import { getItem, setItem, removeItem } from '../../services/storage';
 
 const CART_KEY = 'shopmaster_cart';
@@ -284,8 +284,9 @@ export default function POSScreen({ navigation }) {
     try {
       const data = await api.getCustomers({ limit: 30 });
       setCustomers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      Alert.alert('Error', err.message);
+    } catch {
+      // Offline — show cached customers
+      setCustomers(await getCachedCustomers());
     } finally {
       setLoadingCustomers(false);
     }
@@ -297,8 +298,11 @@ export default function POSScreen({ navigation }) {
     try {
       const data = await api.getCustomers({ search: text, limit: 30 });
       setCustomers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.warn(err);
+    } catch {
+      // Offline — filter from cache
+      const cached = await getCachedCustomers();
+      const q = text.toLowerCase();
+      setCustomers(q ? cached.filter(c => c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)) : cached);
     } finally {
       setLoadingCustomers(false);
     }
