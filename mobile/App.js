@@ -45,6 +45,7 @@ import SuppliersScreen from './src/screens/suppliers/SuppliersScreen';
 import PurchaseOrdersScreen from './src/screens/suppliers/PurchaseOrdersScreen';
 import PromotionsScreen from './src/screens/promotions/PromotionsScreen';
 import ExpensesScreen from './src/screens/expenses/ExpensesScreen';
+import LicenseExpiredScreen from './src/screens/LicenseExpiredScreen';
 
 const Stack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -215,7 +216,7 @@ function MainTabs() {
 }
 
 function RootNavigator() {
-  const { accessToken, loading } = useAuth();
+  const { accessToken, loading, licenseStatus } = useAuth();
 
   if (loading) {
     return (
@@ -225,11 +226,17 @@ function RootNavigator() {
     );
   }
 
+  const licenseExpired = licenseStatus?.licenseExpired === true;
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {accessToken ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+          licenseExpired ? (
+            <Stack.Screen name="LicenseExpired" component={LicenseExpiredScreen} />
+          ) : (
+            <Stack.Screen name="Main" component={MainTabs} />
+          )
         ) : (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />

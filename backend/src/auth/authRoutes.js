@@ -26,7 +26,7 @@ async function generateRefreshToken(db, userId) {
 // POST /api/auth/register-shop
 router.post('/register-shop', [...v.registerShop, validate], async (req, res, next) => {
   try {
-    const { shopName, ownerName, email, password, securityQuestion, securityAnswer } = req.body;
+    const { shopName, ownerName, email, password, securityQuestion, securityAnswer, licenseKey } = req.body;
     if (!shopName || !ownerName || !email || !password) {
       return res.status(400).json({ error: 'shopName, ownerName, email and password are required' });
     }
@@ -38,13 +38,32 @@ router.post('/register-shop', [...v.registerShop, validate], async (req, res, ne
     }
 
     const db = getDb();
+
+    // Validate license key if provided
+    let cleanKey = null;
+    if (licenseKey && licenseKey.trim()) {
+      cleanKey = licenseKey.trim().toUpperCase();
+      const licRow = await dbGet(db, 'SELECT key, claimed_by FROM license_keys WHERE key = ?', [cleanKey]);
+      if (!licRow) return res.status(400).json({ error: 'Invalid license key. Leave it blank to start a free trial instead.' });
+      if (licRow.claimed_by) return res.status(409).json({ error: 'This license key has already been used.' });
+    }
+
     const shopId = uuidv4();
     const userId = uuidv4();
     const hash = await bcrypt.hash(password, 12);
     const answerHash = await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10);
+    const now = new Date().toISOString();
 
     await dbTransaction(db, async (client) => {
-      await dbRun(client, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
+      if (cleanKey) {
+        await dbRun(client,
+          'INSERT INTO tenants (id, name, license_key, license_activated_at) VALUES (?, ?, ?, ?)',
+          [shopId, shopName, cleanKey, now]
+        );
+        await dbRun(client, 'UPDATE license_keys SET claimed_by = ?, claimed_at = ? WHERE key = ?', [shopId, now, cleanKey]);
+      } else {
+        await dbRun(client, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
+      }
       await dbRun(client,
         'INSERT INTO users (id, tenant_id, name, email, password, role, security_question, security_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [userId, shopId, ownerName, email, hash, 'admin', securityQuestion, answerHash]

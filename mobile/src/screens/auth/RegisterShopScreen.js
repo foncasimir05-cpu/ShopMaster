@@ -20,6 +20,7 @@ export default function RegisterShopScreen({ navigation }) {
   const [error, setError] = useState('');
 
   const [shopName, setShopName] = useState('');
+  const [licenseKey, setLicenseKey] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -86,6 +87,7 @@ export default function RegisterShopScreen({ navigation }) {
           password,
           securityQuestion,
           securityAnswer: securityAnswer.trim(),
+          ...(licenseKey.trim() ? { licenseKey: licenseKey.trim() } : {}),
         }),
       });
       const data = await res.json();
@@ -132,6 +134,20 @@ export default function RegisterShopScreen({ navigation }) {
                 error={errors.shopName}
                 placeholder={t('auth.register.shopNamePlaceholder')}
               />
+              <View style={{ marginBottom: 14 }}>
+                <Text style={styles.label}>License Key <Text style={{ color: '#9ca3af', fontWeight: '400' }}>(optional)</Text></Text>
+                <TextInput
+                  style={styles.input}
+                  value={licenseKey}
+                  onChangeText={setLicenseKey}
+                  placeholder="SMPR-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+                <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                  Have a key? Enter it now for immediate full access. Otherwise you get a 30-day free trial.
+                </Text>
+              </View>
               <TouchableOpacity
                 style={styles.btn}
                 onPress={() => { if (validateStep0()) setStep(1); }}

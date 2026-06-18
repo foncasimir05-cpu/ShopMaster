@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { getItem, setItem, removeItem } from '../services/storage';
-import api from '../services/api';
+import api, { getLicenseStatus } from '../services/api';
 
 const isTokenExpired = (token) => {
   try {
@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [isViewingSubShop, setIsViewingSubShop] = useState(false);
   const [parentUser, setParentUser] = useState(null);
+  const [licenseStatus, setLicenseStatus] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +33,10 @@ export function AuthProvider({ children }) {
         ]);
         if (token && !isTokenExpired(token)) {
           setAccessToken(token);
+          try {
+            const ls = await getLicenseStatus();
+            setLicenseStatus(ls);
+          } catch {}
         } else {
           await removeItem('auth_token');
         }
@@ -45,6 +50,14 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
+  const refreshLicense = useCallback(async () => {
+    try {
+      const ls = await getLicenseStatus();
+      setLicenseStatus(ls);
+      return ls;
+    } catch { return null; }
+  }, []);
+
   const login = useCallback(async ({ accessToken: token, refreshToken, user: userInfo }) => {
     await Promise.all([
       setItem('auth_token', token),
@@ -53,6 +66,10 @@ export function AuthProvider({ children }) {
     ]);
     setAccessToken(token);
     setUser(userInfo);
+    try {
+      const ls = await getLicenseStatus();
+      setLicenseStatus(ls);
+    } catch {}
   }, []);
 
   const logout = useCallback(async () => {
@@ -74,6 +91,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setIsViewingSubShop(false);
     setParentUser(null);
+    setLicenseStatus(null);
   }, []);
 
   const updateToken = useCallback(async (newToken) => {
@@ -116,9 +134,11 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     accessToken, user, loading,
     isViewingSubShop, parentUser,
+    licenseStatus, refreshLicense,
     login, logout, updateToken,
     switchToSubShop, switchBackToParent,
   }), [accessToken, user, loading, isViewingSubShop, parentUser,
+      licenseStatus, refreshLicense,
       login, logout, updateToken, switchToSubShop, switchBackToParent]);
 
   return (

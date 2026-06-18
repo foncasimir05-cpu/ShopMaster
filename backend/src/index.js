@@ -39,7 +39,9 @@ const { router: expensesRoutes } = require('./routes/expenses');
 const eventsRoutes = require('./routes/events');
 const syncRoutes = require('./services/sync');
 const pushTokensRoutes = require('./routes/pushTokens');
+const licenseRoutes = require('./routes/license');
 const { authenticateToken } = require('./middleware/authenticateToken');
+const checkLicense = require('./middleware/checkLicense');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -79,24 +81,28 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 // Auth routes — mounted at both prefixes so web (/api/v1) and direct fetch (/api) both work
 app.use('/api/auth', newAuthRoutes);
 app.use('/api/v1/auth', newAuthRoutes);
-app.use('/api/v1/products', authenticateToken, productRoutes);
-app.use('/api/v1/sales', authenticateToken, salesRoutes);
-app.use('/api/v1/inventory', authenticateToken, inventoryRoutes);
-app.use('/api/v1/settings', authenticateToken, settingsRouter);
-app.use('/api/v1/sub-shops', authenticateToken, subShopsRoutes);
-app.use('/api/v1/day-close', authenticateToken, dayCloseRoutes);
+// License routes — must be before checkLicense so users can activate even when expired
+app.use('/api/v1/license', authenticateToken, licenseRoutes);
+
+// All routes below this line enforce the 30-day trial / license gate
+app.use('/api/v1/products', authenticateToken, checkLicense, productRoutes);
+app.use('/api/v1/sales', authenticateToken, checkLicense, salesRoutes);
+app.use('/api/v1/inventory', authenticateToken, checkLicense, inventoryRoutes);
+app.use('/api/v1/settings', authenticateToken, checkLicense, settingsRouter);
+app.use('/api/v1/sub-shops', authenticateToken, checkLicense, subShopsRoutes);
+app.use('/api/v1/day-close', authenticateToken, checkLicense, dayCloseRoutes);
 app.use('/api/v1/premium/webhook', premiumRoutes); // webhook has no auth
-app.use('/api/v1/premium', authenticateToken, premiumRoutes);
-app.use('/api/v1/users', authenticateToken, usersRouter);
-app.use('/api/v1/analytics', authenticateToken, analyticsRoutes);
-app.use('/api/v1/customers', authenticateToken, customersRoutes);
-app.use('/api/v1/suppliers', authenticateToken, suppliersRoutes);
-app.use('/api/v1/purchase-orders', authenticateToken, purchaseOrdersRoutes);
-app.use('/api/v1/promotions', authenticateToken, promotionsRoutes);
-app.use('/api/v1/expenses', authenticateToken, expensesRoutes);
-app.use('/api/v1/events', authenticateToken, eventsRoutes);
-app.use('/api/v1/sync', authenticateToken, syncRoutes);
-app.use('/api/v1/push-tokens', authenticateToken, pushTokensRoutes);
+app.use('/api/v1/premium', authenticateToken, checkLicense, premiumRoutes);
+app.use('/api/v1/users', authenticateToken, checkLicense, usersRouter);
+app.use('/api/v1/analytics', authenticateToken, checkLicense, analyticsRoutes);
+app.use('/api/v1/customers', authenticateToken, checkLicense, customersRoutes);
+app.use('/api/v1/suppliers', authenticateToken, checkLicense, suppliersRoutes);
+app.use('/api/v1/purchase-orders', authenticateToken, checkLicense, purchaseOrdersRoutes);
+app.use('/api/v1/promotions', authenticateToken, checkLicense, promotionsRoutes);
+app.use('/api/v1/expenses', authenticateToken, checkLicense, expensesRoutes);
+app.use('/api/v1/events', authenticateToken, checkLicense, eventsRoutes);
+app.use('/api/v1/sync', authenticateToken, checkLicense, syncRoutes);
+app.use('/api/v1/push-tokens', authenticateToken, checkLicense, pushTokensRoutes);
 
 // Global error handler — structured response with correlation ID
 app.use((err, req, res, _next) => {

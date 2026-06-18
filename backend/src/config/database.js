@@ -262,7 +262,47 @@ async function createTables() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE(user_id, token)
       );
+
+      CREATE TABLE IF NOT EXISTS license_keys (
+        key        TEXT PRIMARY KEY,
+        claimed_by TEXT REFERENCES tenants(id) ON DELETE SET NULL,
+        claimed_at TIMESTAMPTZ
+      );
     `);
+
+    // Add license columns to tenants (idempotent)
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS license_key TEXT`);
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS license_activated_at TIMESTAMPTZ`);
+
+    // Seed the 20 pre-generated license keys (ON CONFLICT DO NOTHING = safe to re-run)
+    const LICENSE_KEYS = [
+      'SMPR-2971A074-A879448F-65643E87',
+      'SMPR-60DFD81A-893C0C37-4BA58BE7',
+      'SMPR-C7CB1126-8122B2AD-2CABEF0E',
+      'SMPR-51273678-94722202-1CFA7C97',
+      'SMPR-C11B61D4-D92D7CDB-90602F43',
+      'SMPR-CAAA305B-7EBE3745-C649E381',
+      'SMPR-3D8B859D-4485F4C9-74872A43',
+      'SMPR-F8201E61-F6463C4C-5EC410C8',
+      'SMPR-ECEE152A-4FAC34EF-7BAD0AF5',
+      'SMPR-993FD48C-FBA092B3-3D91DE2C',
+      'SMPR-CEC454F3-CDC6F3A3-18E43408',
+      'SMPR-92719D15-5EB3203F-CBF30B51',
+      'SMPR-9C2C42C0-5AE8080D-D2DD76B5',
+      'SMPR-A8DF71B1-02784C6D-E4124E74',
+      'SMPR-6920C216-0CF377E7-AF676C13',
+      'SMPR-F86AEA74-323F4867-1F6B0A61',
+      'SMPR-8866D330-0D51B512-E5012AB9',
+      'SMPR-5D9E23DF-0AA55256-E46CB1DC',
+      'SMPR-C52B253A-B22992D9-B22A24B5',
+      'SMPR-BD39D251-EEE48461-55A5A427',
+    ];
+    for (const key of LICENSE_KEYS) {
+      await client.query(
+        'INSERT INTO license_keys (key) VALUES ($1) ON CONFLICT (key) DO NOTHING',
+        [key]
+      );
+    }
   } finally {
     client.release();
   }

@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
-import { getSettings, updateSettings, getPremiumStatus } from '../../services/api';
+import { getSettings, updateSettings, getPremiumStatus, activateLicense } from '../../services/api';
 
 const CURRENCIES = [
   { code: 'XAF', name: 'CFA Franc (CEMAC)' },
@@ -40,7 +40,7 @@ function previewFmt(code) {
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
-  const { user, logout } = useAuth();
+  const { user, logout, licenseStatus, refreshLicense } = useAuth();
   const { reloadSettings } = useShop();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,6 +49,8 @@ export default function SettingsScreen() {
   const [isPremium, setIsPremium] = useState(false);
   const [isSubShop, setIsSubShop] = useState(false);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState(null);
+  const [licenseKeyInput, setLicenseKeyInput] = useState('');
+  const [licenseActivating, setLicenseActivating] = useState(false);
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -204,49 +206,28 @@ export default function SettingsScreen() {
       )}
 
       {user?.role === 'admin' && !isSubShop && (
-        isPremium ? (
-          <>
-            <View style={styles.premiumActiveCard}>
-              <View style={styles.premiumHeader}>
-                <Ionicons name="star" size={18} color="#d97706" />
-                <Text style={styles.premiumActiveTitle}>{t('settings.premium.active')}</Text>
-              </View>
-              {subscriptionExpiresAt && (
-                <Text style={styles.premiumExpiry}>
-                  {t('settings.premium.renews', { date: new Date(subscriptionExpiresAt).toLocaleDateString(i18n.language, { day: 'numeric', month: 'long', year: 'numeric' }) })}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.branchesBtn}
-              onPress={() => navigation.navigate('SubShops')}
-              accessibilityRole="button"
-              accessibilityLabel="Manage branches"
-            >
-              <View style={styles.branchesBtnLeft} importantForAccessibility="no">
-                <Ionicons name="storefront-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
-                <Text style={styles.branchesBtnText}>{t('settings.manageBranches')}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#1a2e4a" importantForAccessibility="no" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <View style={styles.premiumCard}>
-            <View style={styles.premiumHeader}>
-              <Ionicons name="star" size={20} color="#d97706" />
-              <Text style={styles.premiumTitle}>{t('settings.premium.title')}</Text>
-            </View>
-            <Text style={styles.premiumDesc}>{t('settings.premium.description')}</Text>
-            <View style={styles.premiumPricing}>
-              <Text style={styles.premiumPrice}>9,000 XAF<Text style={styles.premiumPricePer}>/month</Text></Text>
-              <Text style={styles.premiumPriceDivider}>·</Text>
-              <Text style={styles.premiumPrice}>108,000 XAF<Text style={styles.premiumPricePer}>/year</Text></Text>
-            </View>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>Coming Soon</Text>
-            </View>
-          </View>
-        )
+        <LicenseSection
+          licenseStatus={licenseStatus}
+          licenseKeyInput={licenseKeyInput}
+          setLicenseKeyInput={setLicenseKeyInput}
+          licenseActivating={licenseActivating}
+          onActivate={async () => {
+            const trimmed = licenseKeyInput.trim();
+            if (!trimmed) return;
+            setLicenseActivating(true);
+            try {
+              await activateLicense(trimmed);
+              await refreshLicense();
+              setLicenseKeyInput('');
+              Alert.alert('License Activated', 'Your license is now active. Multi-branch management is unlocked.');
+            } catch (err) {
+              Alert.alert('Activation Failed', err.response?.data?.error ?? 'Invalid or already-used key.');
+            } finally {
+              setLicenseActivating(false);
+            }
+          }}
+          onNavigateBranches={() => navigation.navigate('SubShops')}
+        />
       )}
 
       <TouchableOpacity
@@ -276,6 +257,75 @@ export default function SettingsScreen() {
         <Text style={styles.saveBtnText}>{saving ? t('settings.saving') : t('settings.saveSettings')}</Text>
       </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+function LicenseSection({ licenseStatus, licenseKeyInput, setLicenseKeyInput, licenseActivating, onActivate, onNavigateBranches }) {
+  const isLicensed = licenseStatus?.isLicensed;
+  const trialDaysRemaining = licenseStatus?.trialDaysRemaining ?? 0;
+  const trialExpired = licenseStatus?.trialExpired;
+
+  if (isLicensed) {
+    return (
+      <>
+        <View style={styles.licenseActiveCard}>
+          <View style={styles.licenseHeader}>
+            <Ionicons name="shield-checkmark" size={18} color="#059669" />
+            <Text style={styles.licenseActiveTitle}>Licensed</Text>
+          </View>
+          <Text style={styles.licenseActiveSub}>Full access · Multi-branch enabled</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.branchesBtn}
+          onPress={onNavigateBranches}
+          accessibilityRole="button"
+          accessibilityLabel="Manage branches"
+        >
+          <View style={styles.branchesBtnLeft} importantForAccessibility="no">
+            <Ionicons name="storefront-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
+            <Text style={styles.branchesBtnText}>Manage Branches</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#1a2e4a" importantForAccessibility="no" />
+        </TouchableOpacity>
+      </>
+    );
+  }
+
+  return (
+    <View style={[styles.licenseCard, trialExpired && styles.licenseCardExpired]}>
+      <View style={styles.licenseHeader}>
+        <Ionicons name={trialExpired ? 'lock-closed' : 'time-outline'} size={18} color={trialExpired ? '#dc2626' : '#d97706'} />
+        <Text style={[styles.licenseTitle, trialExpired && styles.licenseTitleExpired]}>
+          {trialExpired ? 'Trial Expired' : `Free Trial — ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? 's' : ''} remaining`}
+        </Text>
+      </View>
+      <Text style={styles.licenseDesc}>
+        {trialExpired
+          ? 'Your trial has ended. Enter a license key to restore access.'
+          : 'Multi-branch management requires a license key. Enter one below to unlock it.'}
+      </Text>
+      <TextInput
+        style={styles.licenseInput}
+        value={licenseKeyInput}
+        onChangeText={setLicenseKeyInput}
+        placeholder="SMPR-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+        placeholderTextColor="#9ca3af"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        accessibilityLabel="License key input"
+      />
+      <TouchableOpacity
+        style={[styles.licenseBtn, licenseActivating && { opacity: 0.6 }]}
+        onPress={onActivate}
+        disabled={licenseActivating}
+        accessibilityRole="button"
+        accessibilityLabel="Activate license key"
+      >
+        {licenseActivating
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <Text style={styles.licenseBtnText}>Activate License Key</Text>}
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -384,4 +434,31 @@ const styles = StyleSheet.create({
   langBtnActive: { borderColor: '#1a56db', backgroundColor: '#eff6ff' },
   langBtnText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   langBtnTextActive: { color: '#1a56db' },
+
+  // License section
+  licenseCard: {
+    backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a',
+    borderRadius: 12, padding: 16, marginBottom: 12, gap: 10,
+  },
+  licenseCardExpired: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  licenseHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  licenseTitle: { fontSize: 15, fontWeight: '800', color: '#92400e' },
+  licenseTitleExpired: { color: '#dc2626' },
+  licenseDesc: { fontSize: 13, color: '#78350f', lineHeight: 19 },
+  licenseInput: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#d1d5db',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 13, color: '#111827', letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  licenseBtn: {
+    backgroundColor: '#1a2e4a', borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  },
+  licenseBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  licenseActiveCard: {
+    backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0',
+    borderRadius: 10, padding: 12, marginBottom: 8,
+  },
+  licenseActiveTitle: { fontSize: 14, fontWeight: '700', color: '#059669' },
+  licenseActiveSub: { fontSize: 12, color: '#065f46', marginTop: 3 },
 });

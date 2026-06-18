@@ -182,6 +182,10 @@ export const deleteExpense = (id) => api.delete(`/expenses/${id}`).then(r => r.d
 // Email receipt
 export const sendReceiptEmail = (saleId, email) => api.post(`/sales/${saleId}/send-receipt`, { email }).then(r => r.data);
 
+// License
+export const getLicenseStatus = () => api.get('/license/status').then(r => r.data);
+export const activateLicense = (key) => api.post('/license/activate', { key }).then(r => r.data);
+
 // Offline sync
 export const syncBatch = (operations) => api.post('/sync/batch', { operations }).then(r => r.data);
 export const syncPull  = (since)      => api.get('/sync/pull', { params: { since } }).then(r => r.data);

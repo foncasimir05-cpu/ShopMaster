@@ -6,11 +6,13 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getSubShops, createSubShop, switchToSubShopApi } from '../../services/api';
+import { getSubShops, createSubShop, switchToSubShopApi, activateLicense } from '../../services/api';
 
 export default function SubShopsScreen() {
   const navigation = useNavigation();
-  const { switchToSubShop, user } = useAuth();
+  const { switchToSubShop, user, licenseStatus, refreshLicense } = useAuth();
+  const [licKeyInput, setLicKeyInput] = useState('');
+  const [licActivating, setLicActivating] = useState(false);
 
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +75,65 @@ export default function SubShopsScreen() {
       ]
     );
   };
+
+  const handleActivateLicense = async () => {
+    const trimmed = licKeyInput.trim();
+    if (!trimmed) return;
+    setLicActivating(true);
+    try {
+      await activateLicense(trimmed);
+      await refreshLicense();
+      setLicKeyInput('');
+    } catch (err) {
+      Alert.alert('Activation Failed', err.response?.data?.error ?? 'Invalid or already-used key.');
+    } finally {
+      setLicActivating(false);
+    }
+  };
+
+  // License gate — multi-shop requires a valid license key
+  if (!licenseStatus?.multiShopEnabled) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={22} color="#1a2e4a" importantForAccessibility="no" />
+          </TouchableOpacity>
+          <Text style={styles.heading}>Manage Branches</Text>
+        </View>
+
+        <View style={styles.gateBox}>
+          <Ionicons name="lock-closed" size={40} color="#1a2e4a" />
+          <Text style={styles.gateTitle}>Pro Feature</Text>
+          <Text style={styles.gateDesc}>
+            Multi-branch management requires a license key.{'\n'}
+            Enter your key below to unlock this feature.
+          </Text>
+          <TextInput
+            style={styles.gateInput}
+            value={licKeyInput}
+            onChangeText={setLicKeyInput}
+            placeholder="SMPR-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            accessibilityLabel="License key input"
+          />
+          <TouchableOpacity
+            style={[styles.gateBtn, licActivating && { opacity: 0.6 }]}
+            onPress={handleActivateLicense}
+            disabled={licActivating}
+            accessibilityRole="button"
+            accessibilityLabel="Activate license"
+          >
+            {licActivating
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.gateBtnText}>Activate License Key</Text>}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -203,4 +264,24 @@ const styles = StyleSheet.create({
   createBtnText: { color: '#fff', fontWeight: '700' },
   disabledBtn: { opacity: 0.6 },
   errorText: { color: '#dc2626', fontSize: 13 },
+
+  gateBox: {
+    alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
+    padding: 28, marginTop: 16, gap: 12,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  gateTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  gateDesc: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20 },
+  gateInput: {
+    width: '100%', backgroundColor: '#f9fafb',
+    borderWidth: 1.5, borderColor: '#d1d5db', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 11,
+    fontSize: 14, color: '#111827', letterSpacing: 0.8,
+    fontFamily: 'monospace',
+  },
+  gateBtn: {
+    width: '100%', backgroundColor: '#1a2e4a',
+    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+  },
+  gateBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
