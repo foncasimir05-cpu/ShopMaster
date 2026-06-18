@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
+import BarcodeLabelModal from './inventory/BarcodeLabelModal';
 
 export default function InventoryScreen() {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export default function InventoryScreen() {
   const [adjustItem, setAdjustItem] = useState(null);
   const [deltaInput, setDeltaInput] = useState('');
   const [adjusting, setAdjusting] = useState(false);
+  const [labelItem, setLabelItem] = useState(null);
 
   const fetchInventory = useCallback(async () => {
     setLoading(true);
@@ -91,6 +93,14 @@ export default function InventoryScreen() {
                 <Text style={styles.stockText}>{item.stock}</Text>
               </View>
               <TouchableOpacity
+                style={styles.labelBtn}
+                onPress={() => setLabelItem(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Generate barcode label for ${item.name}`}
+              >
+                <Text style={styles.labelBtnText}>Label</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.adjustBtn}
                 onPress={() => openAdjust(item)}
                 accessibilityRole="button"
@@ -103,6 +113,16 @@ export default function InventoryScreen() {
           ListEmptyComponent={<Text style={styles.empty}>{t('inventory.noItems')}</Text>}
         />
       )}
+
+      <BarcodeLabelModal
+        visible={!!labelItem}
+        product={labelItem}
+        onClose={() => setLabelItem(null)}
+        onSaved={(productId, code) => {
+          setItems(prev => prev.map(i => i.id === productId ? { ...i, barcode: code } : i));
+          setLabelItem(null);
+        }}
+      />
 
       <Modal
         visible={!!adjustItem}
@@ -173,6 +193,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   }),
   stockText: { fontWeight: '700', fontSize: 14 },
+  labelBtn: { backgroundColor: '#1a2e4a', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, marginRight: 6 },
+  labelBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   adjustBtn: { backgroundColor: '#ff5a1f', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
   adjustBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
