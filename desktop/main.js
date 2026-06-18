@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -23,7 +23,7 @@ const MIME = {
 };
 
 // Spin up a local HTTP server on a random port to serve the web build.
-// This avoids all file:// protocol restrictions (fetch, fonts, CSP, history).
+// Avoids all file:// protocol restrictions (fetch, fonts, CSP, history).
 function startStaticServer() {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
@@ -44,12 +44,12 @@ function startStaticServer() {
       }
     });
 
-    server.listen(0, '127.0.0.1', () => {
-      resolve(server.address().port);
-    });
+    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
     server.on('error', reject);
   });
 }
+
+let mainWindow = null;
 
 async function createWindow() {
   let appUrl;
@@ -57,13 +57,13 @@ async function createWindow() {
   if (DEV) {
     appUrl = 'http://localhost:8081'; // Expo web dev server
   } else if (!fs.existsSync(path.join(WEB_BUILD, 'index.html'))) {
-    appUrl = null; // handled below
+    appUrl = null;
   } else {
     const port = await startStaticServer();
     appUrl = `http://127.0.0.1:${port}`;
   }
 
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
@@ -77,17 +77,17 @@ async function createWindow() {
   });
 
   if (!appUrl) {
-    win.loadURL(`data:text/html,<body style="font-family:sans-serif;padding:40px;background:#f3f4f6">
+    mainWindow.loadURL(`data:text/html,<body style="font-family:sans-serif;padding:40px;background:#f3f4f6">
       <h2>Build required</h2>
       <p>Run <code>npm run build:web</code> inside the <code>desktop/</code> folder first, then repackage.</p>
     </body>`);
   } else {
-    win.loadURL(appUrl);
+    mainWindow.loadURL(appUrl);
   }
 
-  if (DEV) win.webContents.openDevTools();
+  if (DEV) mainWindow.webContents.openDevTools();
 
-  buildMenu(win);
+  buildMenu(mainWindow);
 }
 
 function buildMenu(win) {
@@ -122,6 +122,11 @@ function buildMenu(win) {
       label: 'Help',
       submenu: [
         {
+          label: 'Check for Updates',
+          click: () => checkForUpdatesManually(),
+        },
+        { type: 'separator' },
+        {
           label: 'ShopMaster Support',
           click: () => shell.openExternal('https://github.com/foncasimir05-cpu/ShopMaster'),
         },
@@ -132,7 +137,96 @@ function buildMenu(win) {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-app.whenReady().then(createWindow);
+// ── Auto-updater ────────────────────────────────────────────────────────────
+
+function setupAutoUpdater() {
+  // Only run in packaged app (not in dev mode)
+  if (DEV || !app.isPackaged) return;
+
+  try {
+    const { autoUpdater } = require('electron-updater');
+
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for update...');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available:', info.version);
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Available',
+        message: `ShopMaster ${info.version} is available. Downloading in the background…`,
+        buttons: ['OK'],
+      });
+    });
+
+    autoUpdater.on('update-not-available', () => {
+      console.log('Already on latest version.');
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `ShopMaster ${info.version} has been downloaded. It will be installed when you quit the app.`,
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+
+    autoUpdater.on('error', (err) => {
+      console.error('Auto-updater error:', err.message);
+    });
+
+    // Check 5 seconds after launch, then every 4 hours
+    setTimeout(() => autoUpdater.checkForUpdates(), 5000);
+    setInterval(() => autoUpdater.checkForUpdates(), 4 * 60 * 60 * 1000);
+
+  } catch (err) {
+    console.warn('Auto-updater not available:', err.message);
+  }
+}
+
+function checkForUpdatesManually() {
+  if (DEV || !app.isPackaged) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Dev Mode',
+      message: 'Auto-update is only active in the packaged/installed version of ShopMaster.',
+      buttons: ['OK'],
+    });
+    return;
+  }
+  try {
+    const { autoUpdater } = require('electron-updater');
+    autoUpdater.checkForUpdates().then(result => {
+      if (!result || !result.updateInfo) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Up to Date',
+          message: 'You are running the latest version of ShopMaster.',
+          buttons: ['OK'],
+        });
+      }
+    }).catch(err => {
+      dialog.showErrorBox('Update Check Failed', err.message);
+    });
+  } catch (err) {
+    dialog.showErrorBox('Update Check Failed', err.message);
+  }
+}
+
+// ── App lifecycle ────────────────────────────────────────────────────────────
+
+app.whenReady().then(async () => {
+  await createWindow();
+  setupAutoUpdater();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

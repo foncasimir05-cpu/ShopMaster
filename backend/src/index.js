@@ -1,4 +1,18 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+if (process.env.JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET is too short (minimum 32 characters). Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  process.exit(1);
+}
+if (['dev_secret_change_me', 'secret', 'changeme', 'jwt_secret'].includes(process.env.JWT_SECRET.toLowerCase())) {
+  console.error('FATAL: JWT_SECRET is a known insecure default. Set a real random secret in your environment.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
@@ -46,6 +60,9 @@ app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : '*';
+if (process.env.NODE_ENV === 'production' && allowedOrigins === '*') {
+  console.warn('WARNING: ALLOWED_ORIGINS is not set; CORS is open to all origins. Set it to your app domain(s) to lock this down.');
+}
 app.use(cors({ origin: allowedOrigins }));
 
 // Body size limit — prevents OOM from oversized payloads

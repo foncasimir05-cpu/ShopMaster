@@ -242,14 +242,9 @@ export default function SettingsScreen() {
               <Text style={styles.premiumPriceDivider}>·</Text>
               <Text style={styles.premiumPrice}>108,000 XAF<Text style={styles.premiumPricePer}>/year</Text></Text>
             </View>
-            <TouchableOpacity
-              style={styles.upgradeBtn}
-              onPress={() => navigation.navigate('Premium')}
-              accessibilityRole="button"
-              accessibilityLabel="Activate premium subscription"
-            >
-              <Text style={styles.upgradeBtnText}>{t('settings.premium.activate')}</Text>
-            </TouchableOpacity>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Coming Soon</Text>
+            </View>
           </View>
         )
       )}
@@ -360,6 +355,8 @@ const styles = StyleSheet.create({
   premiumPriceDivider: { color: '#b45309' },
   upgradeBtn: { backgroundColor: '#d97706', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   upgradeBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  comingSoonBadge: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
+  comingSoonText: { color: '#9ca3af', fontWeight: '700', fontSize: 13, letterSpacing: 0.5 },
   logoutBtn: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 8, marginBottom: 4 },
   logoutBtnText: { color: '#dc2626', fontWeight: '700', fontSize: 15 },
   errorText: { color: '#dc2626', fontSize: 13, marginBottom: 8, textAlign: 'center' },
