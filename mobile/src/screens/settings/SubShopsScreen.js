@@ -66,9 +66,11 @@ export default function SubShopsScreen() {
             try {
               const data = await switchToSubShopApi(branch.id);
               await switchToSubShop(data);
-              navigation.navigate('Home');
-            } catch {
-              Alert.alert('Error', 'Could not access branch. Please try again.');
+              // Navigate at the Tab level — SubShopsScreen lives inside SettingsStack
+              // which is inside the Tab navigator, so getParent() reaches the tabs.
+              navigation.getParent()?.navigate('Home');
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.error ?? 'Could not access branch. Please try again.');
             }
           },
         },
