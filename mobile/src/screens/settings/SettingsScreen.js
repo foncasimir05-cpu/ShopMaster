@@ -266,27 +266,41 @@ function LicenseSection({ licenseStatus, licenseKeyInput, setLicenseKeyInput, li
   const trialExpired = licenseStatus?.trialExpired;
 
   if (isLicensed) {
+    const isPro = licenseStatus?.licenseType === 'pro';
+    const expiresAt = licenseStatus?.licenseExpiresAt;
+    const expiryStr = expiresAt
+      ? new Date(expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+      : null;
     return (
       <>
         <View style={styles.licenseActiveCard}>
           <View style={styles.licenseHeader}>
             <Ionicons name="shield-checkmark" size={18} color="#059669" />
-            <Text style={styles.licenseActiveTitle}>Licensed</Text>
+            <Text style={styles.licenseActiveTitle}>
+              {isPro ? 'Pro License — Active' : 'Basic License — Active'}
+            </Text>
           </View>
-          <Text style={styles.licenseActiveSub}>Full access · Multi-branch enabled</Text>
+          <Text style={styles.licenseActiveSub}>
+            {isPro ? 'Full access · Multi-branch enabled' : 'Main shop access only'}
+          </Text>
+          {expiryStr && (
+            <Text style={styles.licenseExpiry}>Expires {expiryStr}</Text>
+          )}
         </View>
-        <TouchableOpacity
-          style={styles.branchesBtn}
-          onPress={onNavigateBranches}
-          accessibilityRole="button"
-          accessibilityLabel="Manage branches"
-        >
-          <View style={styles.branchesBtnLeft} importantForAccessibility="no">
-            <Ionicons name="storefront-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
-            <Text style={styles.branchesBtnText}>Manage Branches</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#1a2e4a" importantForAccessibility="no" />
-        </TouchableOpacity>
+        {isPro && (
+          <TouchableOpacity
+            style={styles.branchesBtn}
+            onPress={onNavigateBranches}
+            accessibilityRole="button"
+            accessibilityLabel="Manage branches"
+          >
+            <View style={styles.branchesBtnLeft} importantForAccessibility="no">
+              <Ionicons name="storefront-outline" size={20} color="#1a2e4a" importantForAccessibility="no" />
+              <Text style={styles.branchesBtnText}>Manage Branches</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#1a2e4a" importantForAccessibility="no" />
+          </TouchableOpacity>
+        )}
       </>
     );
   }
@@ -461,4 +475,5 @@ const styles = StyleSheet.create({
   },
   licenseActiveTitle: { fontSize: 14, fontWeight: '700', color: '#059669' },
   licenseActiveSub: { fontSize: 12, color: '#065f46', marginTop: 3 },
+  licenseExpiry: { fontSize: 11, color: '#6b7280', marginTop: 4 },
 });

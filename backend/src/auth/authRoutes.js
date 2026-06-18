@@ -52,15 +52,18 @@ router.post('/register-shop', [...v.registerShop, validate], async (req, res, ne
     const userId = uuidv4();
     const hash = await bcrypt.hash(password, 12);
     const answerHash = await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10);
-    const now = new Date().toISOString();
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setMonth(expiresAt.getMonth() + 12);
 
     await dbTransaction(db, async (client) => {
       if (cleanKey) {
+        const licRow = await dbGet(client, 'SELECT type FROM license_keys WHERE key = ?', [cleanKey]);
         await dbRun(client,
-          'INSERT INTO tenants (id, name, license_key, license_activated_at) VALUES (?, ?, ?, ?)',
-          [shopId, shopName, cleanKey, now]
+          'INSERT INTO tenants (id, name, license_key, license_type, license_activated_at, license_expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [shopId, shopName, cleanKey, licRow?.type ?? 'pro', now.toISOString(), expiresAt.toISOString()]
         );
-        await dbRun(client, 'UPDATE license_keys SET claimed_by = ?, claimed_at = ? WHERE key = ?', [shopId, now, cleanKey]);
+        await dbRun(client, 'UPDATE license_keys SET claimed_by = ?, claimed_at = ? WHERE key = ?', [shopId, now.toISOString(), cleanKey]);
       } else {
         await dbRun(client, 'INSERT INTO tenants (id, name) VALUES (?, ?)', [shopId, shopName]);
       }

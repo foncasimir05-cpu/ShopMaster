@@ -11,9 +11,10 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
   try {
     const db = getDb();
-    const lic = await dbGet(db, 'SELECT license_key FROM tenants WHERE id = ?', [req.shopId]);
-    if (!lic?.license_key) {
-      return res.status(403).json({ error: 'Multi-branch management requires a license key.', code: 'MULTI_SHOP_REQUIRES_LICENSE' });
+    const lic = await dbGet(db, 'SELECT license_key, license_type, license_expires_at FROM tenants WHERE id = ?', [req.shopId]);
+    const licValid = lic?.license_key && (!lic.license_expires_at || new Date() <= new Date(lic.license_expires_at));
+    if (!licValid || lic.license_type !== 'pro') {
+      return res.status(403).json({ error: 'Multi-branch management requires a Pro license key. Activate one in Settings → License.', code: 'MULTI_SHOP_REQUIRES_LICENSE' });
     }
     const subShops = await dbAll(db,
       `SELECT t.id, t.name, t.created_at,
@@ -30,12 +31,13 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const db = getDb();
-    const tenant = await dbGet(db, 'SELECT license_key FROM tenants WHERE id = ?', [req.shopId]);
+    const tenant = await dbGet(db, 'SELECT license_key, license_type, license_expires_at FROM tenants WHERE id = ?', [req.shopId]);
     if (!tenant) {
       return res.status(404).json({ error: 'Shop not found. Please log out and log in again.' });
     }
-    if (!tenant.license_key) {
-      return res.status(403).json({ error: 'Multi-branch management requires a license key. Activate one in Settings → License.', code: 'MULTI_SHOP_REQUIRES_LICENSE' });
+    const tenantLicValid = tenant.license_key && (!tenant.license_expires_at || new Date() <= new Date(tenant.license_expires_at));
+    if (!tenantLicValid || tenant.license_type !== 'pro') {
+      return res.status(403).json({ error: 'Multi-branch management requires a Pro license key. Activate one in Settings → License.', code: 'MULTI_SHOP_REQUIRES_LICENSE' });
     }
     const { branchName, adminName, adminEmail, adminPassword } = req.body;
     if (!branchName || !adminName || !adminEmail || !adminPassword) {
