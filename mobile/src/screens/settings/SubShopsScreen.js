@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator, Alert,
+  StyleSheet, ScrollView, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,27 +55,30 @@ export default function SubShopsScreen() {
   };
 
   const handleAccess = async (branch) => {
-    Alert.alert(
-      `Access ${branch.name}?`,
-      `You will switch into ${branch.name} as admin. Use "Back to ${user?.shopName}" to return.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Access Branch',
-          onPress: async () => {
-            try {
-              const data = await switchToSubShopApi(branch.id);
-              await switchToSubShop(data);
-              // Navigate at the Tab level — SubShopsScreen lives inside SettingsStack
-              // which is inside the Tab navigator, so getParent() reaches the tabs.
-              navigation.getParent()?.navigate('Home');
-            } catch (err) {
-              Alert.alert('Error', err.response?.data?.error ?? 'Could not access branch. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    const doAccess = async () => {
+      try {
+        const data = await switchToSubShopApi(branch.id);
+        await switchToSubShop(data);
+        navigation.getParent()?.navigate('Home');
+      } catch (err) {
+        Alert.alert('Error', err.response?.data?.error ?? 'Could not access branch. Please try again.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Access ${branch.name}?\n\nYou will switch into ${branch.name} as admin.`)) {
+        doAccess();
+      }
+    } else {
+      Alert.alert(
+        `Access ${branch.name}?`,
+        `You will switch into ${branch.name} as admin. Use "Back to ${user?.shopName}" to return.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Access Branch', onPress: doAccess },
+        ]
+      );
+    }
   };
 
   const handleActivateLicense = async () => {

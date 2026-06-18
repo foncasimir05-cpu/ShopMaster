@@ -366,7 +366,11 @@ export default function POSScreen({ navigation }) {
       setCompletedSale({ ...result, tendered, change, queued: false });
       Animated.spring(successAnim, { toValue: 1, useNativeDriver: true }).start();
     } catch (err) {
-      if (!err.response && err.request) {
+      const isNetworkError = !err.response && (
+        err.request || err.code === 'ERR_NETWORK' ||
+        err.message === 'Network Error' || err.name === 'NetworkError'
+      );
+      if (isNetworkError) {
         await queueSale(salePayload);
         setShowPayment(false);
         const offlineItems = cart.map(i => ({
