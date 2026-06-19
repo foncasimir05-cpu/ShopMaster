@@ -4,6 +4,7 @@ const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
 const validate = require('../middleware/validate');
 const v = require('../middleware/validators');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -77,7 +78,7 @@ router.get('/export', async (req, res, next) => {
 });
 
 // POST /api/v1/products/import — CSV body: { csv: "..." }  (must be before /:id)
-router.post('/import', async (req, res, next) => {
+router.post('/import', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const { csv } = req.body;
     if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'csv string required' });
@@ -122,7 +123,7 @@ router.post('/import', async (req, res, next) => {
 
         if (existing) {
           await dbRun(db,
-            `UPDATE products SET name=?, barcode=?, price=?, cost=?, stock=?, category=?, min_stock=?, updated_at=NOW()
+            `UPDATE products SET name=?, barcode=?, price=?, cost=?, stock=?, category=?, min_stock=?, is_deleted=0, updated_at=NOW()
              WHERE id=?`,
             [name, barcode, price, cost, stock, category, min_stock, existing.id]
           );
@@ -158,7 +159,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/v1/products
-router.post('/', [...v.createProduct, validate], async (req, res, next) => {
+router.post('/', requireRole('owner', 'admin', 'manager'), [...v.createProduct, validate], async (req, res, next) => {
   try {
     const { name, sku, barcode, price, cost, stock, category, min_stock } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
@@ -178,11 +179,11 @@ router.post('/', [...v.createProduct, validate], async (req, res, next) => {
 });
 
 // PUT /api/v1/products/:id
-router.put('/:id', [...v.updateProduct, validate], async (req, res, next) => {
+router.put('/:id', requireRole('owner', 'admin', 'manager'), [...v.updateProduct, validate], async (req, res, next) => {
   try {
     const db = getDb();
     const existing = await dbGet(db,
-      'SELECT id FROM products WHERE id = ? AND tenant_id = ?',
+      'SELECT id FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)',
       [req.params.id, req.shopId]
     );
     if (!existing) return res.status(404).json({ error: 'Product not found' });
@@ -203,7 +204,7 @@ router.put('/:id', [...v.updateProduct, validate], async (req, res, next) => {
 });
 
 // DELETE /api/v1/products/:id  (soft-delete)
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
     const info = await dbRun(db,
@@ -223,17 +224,17 @@ router.delete('/:id', async (req, res, next) => {
 router.get('/:id/variants', async (req, res, next) => {
   try {
     const db = getDb();
-    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)', [req.params.id, req.shopId]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(await dbAll(db, 'SELECT * FROM product_variants WHERE product_id = ? AND tenant_id = ? ORDER BY name ASC', [req.params.id, req.shopId]));
   } catch (err) { next(err); }
 });
 
 // POST /api/v1/products/:id/variants
-router.post('/:id/variants', async (req, res, next) => {
+router.post('/:id/variants', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
-    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);
+    const product = await dbGet(db, 'SELECT id FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)', [req.params.id, req.shopId]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const { name, sku, barcode, price, cost, stock, attributes } = req.body;
@@ -252,7 +253,7 @@ router.post('/:id/variants', async (req, res, next) => {
 });
 
 // PUT /api/v1/products/:id/variants/:variantId
-router.put('/:id/variants/:variantId', async (req, res, next) => {
+router.put('/:id/variants/:variantId', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
     const variant = await dbGet(db, 'SELECT id FROM product_variants WHERE id = ? AND product_id = ? AND tenant_id = ?',
@@ -271,7 +272,7 @@ router.put('/:id/variants/:variantId', async (req, res, next) => {
 });
 
 // DELETE /api/v1/products/:id/variants/:variantId
-router.delete('/:id/variants/:variantId', async (req, res, next) => {
+router.delete('/:id/variants/:variantId', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
     const info = await dbRun(db,

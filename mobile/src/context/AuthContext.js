@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { jwtDecode } from 'jwt-decode';
 import { getItem, setItem, removeItem } from '../services/storage';
 import api, { getLicenseStatus } from '../services/api';
+import { clearAllCaches } from '../services/offlineQueue';
 
 const isTokenExpired = (token) => {
   try {
@@ -91,6 +92,7 @@ export function AuthProvider({ children }) {
       removeItem('parent_auth_token'),
       removeItem('parent_user'),
     ]);
+    clearAllCaches(); // wipe product/customer/sales/analytics cache so next user starts fresh
     setAccessToken(null);
     setUser(null);
     setIsViewingSubShop(false);

@@ -15,12 +15,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useOffline } from '../context/OfflineContext';
-import { queueStockAdjust } from '../services/offlineQueue';
+import { queueStockAdjust, getCachedProducts } from '../services/offlineQueue';
+import { isNetworkErr } from '../utils/netError';
 import * as api from '../services/api';
 import BarcodeLabelModal from './inventory/BarcodeLabelModal';
-
-const isNetworkErr = (err) =>
-  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
 
 export default function InventoryScreen() {
   const { t } = useTranslation();
@@ -38,7 +36,15 @@ export default function InventoryScreen() {
     try {
       setItems(await api.getInventory({ lowStock: lowStockOnly }));
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? err.message);
+      if (isNetworkErr(err)) {
+        const cached = await getCachedProducts();
+        const visible = lowStockOnly
+          ? cached.filter(p => !p.has_variants && p.stock <= (p.min_stock ?? 0))
+          : cached;
+        setItems(visible);
+      } else {
+        Alert.alert('Error', err.response?.data?.error ?? err.message);
+      }
     } finally {
       setLoading(false);
     }

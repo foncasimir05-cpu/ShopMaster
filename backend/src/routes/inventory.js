@@ -11,11 +11,11 @@ router.get('/', async (req, res, next) => {
     const { lowStock } = req.query;
     const db = getDb();
 
-    let query = `SELECT id, name, sku, barcode, stock, category FROM products WHERE tenant_id = ?`;
+    let query = `SELECT id, name, sku, barcode, stock, min_stock, category FROM products WHERE tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)`;
     const params = [req.shopId];
 
     if (lowStock === 'true') {
-      query += ' AND stock <= 5';
+      query += ' AND min_stock > 0 AND stock <= min_stock';
     }
 
     query += ' ORDER BY stock ASC';
@@ -26,7 +26,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // PATCH /api/v1/inventory/:productId/adjust
-router.patch('/:productId/adjust', requireRole('admin'), async (req, res, next) => {
+router.patch('/:productId/adjust', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const { delta, reason } = req.body;
     if (typeof delta !== 'number') {
@@ -35,7 +35,7 @@ router.patch('/:productId/adjust', requireRole('admin'), async (req, res, next) 
 
     const db = getDb();
     const product = await dbGet(db,
-      'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
+      'SELECT * FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)',
       [req.params.productId, req.shopId]
     );
     if (!product) return res.status(404).json({ error: 'Product not found' });

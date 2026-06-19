@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
 import { useShop } from '../../context/ShopContext';
 import { printReceipt } from '../../services/receiptPrinter';
+import { cacheSales, getCachedSales } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 
 const PAGE_SIZE = 30;
 const STATUS_COLOR = { completed: '#16a34a', voided: '#dc2626' };
@@ -38,8 +40,16 @@ export default function SalesHistoryScreen() {
       setSales(prev => appending ? [...prev, ...list] : list);
       setTotalCount(data.total_count ?? 0);
       setPage(p);
+      // Cache the first unfiltered page for offline use
+      if (p === 1 && !start && !end) cacheSales(list);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? err.message);
+      if (!appending && isNetworkErr(err)) {
+        const cached = await getCachedSales();
+        setSales(cached);
+        setTotalCount(cached.length);
+      } else {
+        Alert.alert('Error', err.response?.data?.error ?? err.message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

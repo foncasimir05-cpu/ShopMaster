@@ -10,6 +10,8 @@ import { changeLanguage } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
 import { getSettings, updateSettings, getPremiumStatus, activateLicense } from '../../services/api';
+import { getCachedSettings, cacheSettings } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 
 const CURRENCIES = [
   { code: 'XAF', name: 'CFA Franc (CEMAC)' },
@@ -63,22 +65,39 @@ export default function SettingsScreen() {
   const [receiptFooter, setReceiptFooter] = useState('');
 
   useEffect(() => {
+    const applySettings = (d) => {
+      setName(d.name ?? '');
+      setAddress(d.address ?? '');
+      setPhone(d.phone ?? '');
+      setEmail(d.email ?? '');
+      setTaxEnabled(Boolean(d.tax_enabled));
+      setTaxRate(String(d.tax_rate ?? 0));
+      setTaxLabel(d.tax_label ?? 'VAT');
+      setCurrency(d.currency ?? 'XAF');
+      setReceiptFooter(d.receipt_footer ?? '');
+    };
+
     Promise.all([getSettings(), getPremiumStatus()])
       .then(([d, p]) => {
-        setName(d.name ?? '');
-        setAddress(d.address ?? '');
-        setPhone(d.phone ?? '');
-        setEmail(d.email ?? '');
-        setTaxEnabled(Boolean(d.tax_enabled));
-        setTaxRate(String(d.tax_rate ?? 0));
-        setTaxLabel(d.tax_label ?? 'VAT');
-        setCurrency(d.currency ?? 'XAF');
-        setReceiptFooter(d.receipt_footer ?? '');
+        applySettings(d);
+        cacheSettings(d);
         setIsPremium(Boolean(p.isPremium));
         setIsSubShop(Boolean(p.isSubShop));
         setSubscriptionExpiresAt(p.subscriptionExpiresAt ?? null);
       })
-      .catch(() => setError(t('settings.loadFailed')))
+      .catch(async (err) => {
+        if (isNetworkErr(err)) {
+          const cached = await getCachedSettings();
+          if (cached) {
+            applySettings(cached);
+            setError(''); // show cached data — no error
+          } else {
+            setError(t('settings.loadFailed'));
+          }
+        } else {
+          setError(t('settings.loadFailed'));
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -19,6 +19,8 @@ import * as api from '../services/api';
 import { useShop } from '../context/ShopContext';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useStockAlert } from '../context/StockAlertContext';
+import { getCachedProducts, cacheProducts } from '../services/offlineQueue';
+import { isNetworkErr } from '../utils/netError';
 
 const CAT_MAP = {
   food:'#f59e0b', drink:'#06b6d4', bev:'#06b6d4', electr:'#6366f1',
@@ -150,8 +152,15 @@ export default function ProductsScreen() {
     try {
       const data = await api.getProducts({ search });
       setProducts(data);
+      if (!search) cacheProducts(data); // keep cache fresh when unfiltered
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error ?? err.message);
+      if (isNetworkErr(err)) {
+        const cached = await getCachedProducts();
+        const q = search.toLowerCase();
+        setProducts(q ? cached.filter(p => p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)) : cached);
+      } else {
+        Alert.alert('Error', err.response?.data?.error ?? err.message);
+      }
     } finally {
       setLoading(false);
     }

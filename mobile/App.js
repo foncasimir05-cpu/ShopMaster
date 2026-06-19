@@ -87,6 +87,18 @@ function SettingsNavigator() {
   );
 }
 
+// On every login (or app restart with a saved token) immediately seed all offline caches
+// so the app works without internet from the very first session.
+function CacheSeed() {
+  const { accessToken } = useAuth();
+  const { manualSync } = useOffline();
+  useEffect(() => {
+    if (!accessToken) return;
+    manualSync().catch(() => {});
+  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 // Registers for Expo push notifications and sends the token to the server.
 // Runs once after the user is authenticated. Silent on simulator or permission denial.
 function PushRegistration() {
@@ -114,8 +126,8 @@ function OfflineBanner() {
   const { isOnline, pendingCount } = useOffline();
   if (isOnline) return null;
   const label = pendingCount > 0
-    ? `Offline. ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} queued and will sync when reconnected.`
-    : 'Offline. Sales will be queued and synced when reconnected.';
+    ? `Offline. ${pendingCount} item${pendingCount !== 1 ? 's' : ''} queued and will sync when reconnected.`
+    : 'Offline. Changes will be queued and synced when reconnected.';
   return (
     <View
       style={[bannerStyles.bar, { backgroundColor: '#dc2626' }]}
@@ -124,7 +136,7 @@ function OfflineBanner() {
     >
       <Ionicons name="cloud-offline-outline" size={14} color="#fff" importantForAccessibility="no" />
       <Text style={bannerStyles.text} importantForAccessibility="no">
-        Offline{pendingCount > 0 ? ` · ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} queued` : ''}
+        Offline{pendingCount > 0 ? ` · ${pendingCount} queued` : ''}
       </Text>
     </View>
   );
@@ -274,6 +286,7 @@ export default function App() {
           <ShopProvider>
             <StockAlertProvider>
               <OfflineProvider>
+                <CacheSeed />
                 <PushRegistration />
                 <SubShopBanner />
                 <OfflineBanner />

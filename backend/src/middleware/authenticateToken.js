@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const ACCESS_SECRET = process.env.JWT_SECRET || 'dev_access_secret_change_me';
+const ACCESS_SECRET = process.env.JWT_SECRET;
 
 function signAccessToken(user) {
   return jwt.sign(

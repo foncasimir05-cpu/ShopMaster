@@ -8,10 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 import { useOffline } from '../../context/OfflineContext';
 import { getCachedCustomers, cacheCustomers, queueCreateCustomer } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 import * as api from '../../services/api';
-
-const isNetworkErr = (err) =>
-  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
 
 export default function CustomersScreen() {
   const { t, i18n } = useTranslation();

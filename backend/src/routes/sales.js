@@ -8,6 +8,7 @@ const { publish } = require('../services/eventBus');
 const { sendLowStockPush } = require('../services/push');
 const validate = require('../middleware/validate');
 const v = require('../middleware/validators');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -168,7 +169,7 @@ router.post('/', [...v.createSale, validate], async (req, res, next) => {
           stockSource = { type: 'variant', id: variantId };
         } else {
           const product = await dbGet(client,
-            'SELECT * FROM products WHERE id = ? AND tenant_id = ?',
+            'SELECT * FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)',
             [productId, req.shopId]
           );
           if (!product) throw Object.assign(new Error(`Product ${productId} not found`), { status: 404 });
@@ -270,7 +271,7 @@ router.post('/', [...v.createSale, validate], async (req, res, next) => {
 });
 
 // DELETE /api/v1/sales/:id  — void sale + restore stock
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
     const sale = await dbGet(db,

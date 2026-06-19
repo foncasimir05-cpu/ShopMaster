@@ -73,7 +73,7 @@ router.get('/pull', async (req, res, next) => {
     const since = req.query.since || '1970-01-01T00:00:00.000Z';
     const db = getDb();
 
-    const [products, customers, promotions] = await Promise.all([
+    const [products, customers, promotions, settings] = await Promise.all([
       dbAll(db,
         'SELECT id, name, sku, barcode, price, cost, stock, min_stock, category, has_variants, is_deleted, updated_at FROM products WHERE tenant_id = ? AND updated_at > ?',
         [req.shopId, since]
@@ -83,12 +83,13 @@ router.get('/pull', async (req, res, next) => {
         [req.shopId, since]
       ),
       dbAll(db,
-        'SELECT * FROM promotions WHERE tenant_id = ? AND is_active = 1 AND updated_at > ?',
-        [req.shopId, since]
+        'SELECT * FROM promotions WHERE tenant_id = ? AND is_active = 1',
+        [req.shopId]
       ),
+      dbGet(db, 'SELECT * FROM shop_settings WHERE tenant_id = ?', [req.shopId]),
     ]);
 
-    res.json({ syncedAt: new Date().toISOString(), products, customers, promotions });
+    res.json({ syncedAt: new Date().toISOString(), products, customers, promotions, settings });
   } catch (err) { next(err); }
 });
 

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import { getSettings } from '../services/api';
 import { formatCurrency as _fmt } from 'shopmaster-shared';
+import { cacheSettings, getCachedSettings } from '../services/offlineQueue';
 
 const CACHE_KEY = 'shopmaster_currency';
 
@@ -29,7 +30,17 @@ export function ShopProvider({ children }) {
       const code = s?.currency ?? 'XAF';
       setCurrency(code);
       writeCache(code);
-    } catch {}
+      cacheSettings(s);
+    } catch {
+      // Offline — restore from local cache
+      const cached = await getCachedSettings();
+      if (cached) {
+        setSettings(cached);
+        const code = cached.currency ?? 'XAF';
+        setCurrency(code);
+        writeCache(code);
+      }
+    }
   }, []);
 
   useEffect(() => {

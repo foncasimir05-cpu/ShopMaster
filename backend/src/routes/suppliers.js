@@ -4,6 +4,7 @@ const { getDb } = require('../config/database');
 const { dbGet, dbAll, dbRun } = require('../config/dbHelpers');
 const validate = require('../middleware/validate');
 const v = require('../middleware/validators');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/v1/suppliers
-router.post('/', [...v.createSupplier, validate], async (req, res, next) => {
+router.post('/', requireRole('owner', 'admin', 'manager'), [...v.createSupplier, validate], async (req, res, next) => {
   try {
     const { name, contact, phone, email, address } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
@@ -46,7 +47,7 @@ router.post('/', [...v.createSupplier, validate], async (req, res, next) => {
 });
 
 // PUT /api/v1/suppliers/:id
-router.put('/:id', [...v.updateSupplier, validate], async (req, res, next) => {
+router.put('/:id', requireRole('owner', 'admin', 'manager'), [...v.updateSupplier, validate], async (req, res, next) => {
   try {
     const { name, contact, phone, email, address } = req.body;
     const db = getDb();
@@ -61,7 +62,7 @@ router.put('/:id', [...v.updateSupplier, validate], async (req, res, next) => {
 });
 
 // DELETE /api/v1/suppliers/:id
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requireRole('owner', 'admin', 'manager'), async (req, res, next) => {
   try {
     const db = getDb();
     const sup = await dbGet(db, 'SELECT id FROM suppliers WHERE id = ? AND tenant_id = ?', [req.params.id, req.shopId]);

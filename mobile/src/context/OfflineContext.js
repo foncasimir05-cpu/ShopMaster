@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import {
   getPendingOperations, removeOperation, getPendingCount,
   cacheProducts, getCachedProducts, cacheCustomers, getCachedCustomers,
+  cachePromotions, cacheSettings,
 } from '../services/offlineQueue';
 import { getItem, setItem } from '../services/storage';
 import { checkHealth, syncBatch, syncPull } from '../services/api';
@@ -89,6 +90,9 @@ export function OfflineProvider({ children }) {
         for (const c of result.customers) cMap[c.id] = { ...cMap[c.id], ...c };
         await cacheCustomers(Object.values(cMap));
       }
+
+      if (result.promotions?.length) await cachePromotions(result.promotions);
+      if (result.settings)           await cacheSettings(result.settings);
 
       const now = new Date().toISOString();
       await setItem('last_pull_sync', result.syncedAt);

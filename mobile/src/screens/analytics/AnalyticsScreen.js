@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 import * as api from '../../services/api';
 import { F } from '../../theme';
+import { cacheAnalytics, getCachedAnalytics } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 
 const METHOD_COLORS = {
   cash: '#16a34a',
@@ -30,6 +32,7 @@ export default function AnalyticsScreen() {
   const [paymentBreakdown, setPaymentBreakdown] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
 
   const load = useCallback(async (days) => {
     try {
@@ -43,8 +46,19 @@ export default function AnalyticsScreen() {
       setTrend(tr);
       setTopProducts(top);
       setPaymentBreakdown(pay);
+      setFromCache(false);
+      cacheAnalytics({ summary: s, trend: tr, topProducts: top, paymentBreakdown: pay });
     } catch (e) {
-      console.warn('Analytics load error:', e.message);
+      if (isNetworkErr(e)) {
+        const cached = await getCachedAnalytics();
+        if (cached) {
+          setSummary(cached.summary);
+          setTrend(cached.trend ?? []);
+          setTopProducts(cached.topProducts ?? []);
+          setPaymentBreakdown(cached.paymentBreakdown ?? []);
+          setFromCache(true);
+        }
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,6 +76,10 @@ export default function AnalyticsScreen() {
     return <View style={styles.center}><ActivityIndicator size="large" color="#1a56db" /></View>;
   }
 
+  if (!summary) {
+    return <View style={styles.center}><Text style={{ color: '#9ca3af', fontSize: 14 }}>No data available offline.</Text></View>;
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -69,6 +87,11 @@ export default function AnalyticsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Text style={styles.heading}>{t('analytics.title')}</Text>
+      {fromCache && (
+        <View style={{ backgroundColor: '#fef3c7', borderRadius: 8, padding: 8, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 12, color: '#92400e' }}>⚡ Offline — showing cached data. Pull down to refresh when connected.</Text>
+        </View>
+      )}
 
       {/* ─── Today ─────────────────────────────────── */}
       <SectionHead label="TODAY" color="#1a56db" />

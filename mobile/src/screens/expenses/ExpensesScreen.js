@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 import { useOffline } from '../../context/OfflineContext';
 import { queueExpense } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 import * as api from '../../services/api';
 
 const CATEGORY_KEYS = ['Rent', 'Salaries', 'Utilities', 'Supplies', 'Transport', 'Marketing', 'Equipment', 'Other'];
@@ -33,8 +34,7 @@ const today = () => new Date().toISOString().split('T')[0];
 
 const EMPTY_FORM = { amount: '', category: 'Other', description: '', date: today() };
 
-const isNetworkErr = (err) =>
-  !err.response && (err.request || err.code === 'ERR_NETWORK' || err.message === 'Network Error');
+
 
 export default function ExpensesScreen({ navigation }) {
   const { t } = useTranslation();

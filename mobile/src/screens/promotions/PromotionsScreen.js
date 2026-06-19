@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useShop } from '../../context/ShopContext';
 import * as api from '../../services/api';
+import { cachePromotions, getCachedPromotions } from '../../services/offlineQueue';
+import { isNetworkErr } from '../../utils/netError';
 
 const EMPTY_FORM = { name: '', code: '', type: 'percent', value: '', min_purchase: '', expires_at: '', is_active: true };
 
@@ -24,9 +26,15 @@ export default function PromotionsScreen({ navigation }) {
     setLoading(true);
     try {
       const data = await api.getPromotions();
-      setPromos(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setPromos(list);
+      cachePromotions(list);
     } catch (err) {
-      Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      if (isNetworkErr(err)) {
+        setPromos(await getCachedPromotions());
+      } else {
+        Alert.alert(t('common.error'), err.response?.data?.error ?? err.message);
+      }
     } finally {
       setLoading(false);
     }

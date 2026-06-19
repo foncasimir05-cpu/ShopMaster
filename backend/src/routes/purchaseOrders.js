@@ -65,7 +65,7 @@ router.post('/', [...v.createPurchaseOrder, validate], async (req, res, next) =>
         [id, req.shopId, supplierId ?? null, 'pending', notes ?? null, req.user.id]
       );
       for (const item of items) {
-        const product = await dbGet(client, 'SELECT id FROM products WHERE id = ? AND tenant_id = ?', [item.productId, req.shopId]);
+        const product = await dbGet(client, 'SELECT id FROM products WHERE id = ? AND tenant_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)', [item.productId, req.shopId]);
         if (!product) throw Object.assign(new Error(`Product ${item.productId} not found`), { status: 404 });
         const qty = parseInt(item.qtyOrdered, 10) || 0;
         const cost = parseFloat(item.unitCost) || 0;
